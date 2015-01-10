@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Nice2 viewer</title>
+<style>
+  #code-container {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    background-color: #fee;
+  }  
+  #graph-container {
+    top: 0;
+    bottom: 0;
+    left: 25em;
+    right: 0;
+    position: absolute;
+  }
+</style>
+</head>
+<body>
+
+<script src="jquery/jquery-2.1.1.min.js"></script>
+<script src="sigmajs/sigma.min.js"></script>
+<script src="sigmajs/plugins/sigma.layout.forceAtlas2.min.js"></script>
+<script src="sigmajs/plugins/sigma.plugins.dragNodes.min.js"></script>
+<script src="sigmajs/plugins/sigma.renderers.edgeLabels.min.js"></script>
+<script src="uglifyjs/uglify.js"></script>
+<script src="viewer.js"></script>
+<link rel="stylesheet" href="tabs.css">
+
+
+<div id="container">  
+
+  <ul id="tabs">
+      <li><a href="#" name="#tab1">Features</a></li>
+      <li><a href="#" name="#tab2">JS source</a></li>
+  </ul>
+  
+  <div id="content"> 
+      <div id="tab1">
+        <div id="code-container" style="margin-top: 40px;">
+          <textarea rows="40" cols="40" id="query-text">
+{
+  "query" : [ {
+    "a" : 4,
+    "b" : 24,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 56,
+    "b" : 36,
+    "f2" : "N-N  <- "
+  }, {
+    "a" : 138,
+    "b" : 326,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[2]"
+  }, {
+    "a" : 150,
+    "b" : 84,
+    "f2" : "N-N VAR:INITCALL[1]"
+  }, {
+    "a" : 58,
+    "b" : 136,
+    "f2" : "N-N NEW[0]:NEW[1]GETPROP[0]"
+  }, {
+    "a" : 138,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 384,
+    "b" : 140,
+    "f2" : "N-N FNPAR"
+  }, {
+    "a" : 174,
+    "b" : 220,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 26,
+    "b" : 138,
+    "f2" : "N-N CALL[0]GETPROP[1]:CALL[1]GETELEM[0]"
+  }, {
+    "a" : 6,
+    "b" : 4,
+    "f2" : "N-N CALL[0]:CALL[1]GETPROP[0]"
+  }, {
+    "a" : 6,
+    "b" : 4,
+    "f2" : "N-N CALL[0]:CALL[2]GETPROP[0]"
+  }, {
+    "a" : 138,
+    "b" : 84,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]"
+  }, {
+    "a" : 206,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 136,
+    "b" : 162,
+    "f2" : "N-N GETPROP[0]GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 104,
+    "b" : 150,
+    "f2" : "N-N CALL[0]:CALL[1]"
+  }, {
+    "a" : 58,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 58,
+    "b" : 206,
+    "f2" : "N-N NEW[0]:NEW[1]"
+  }, {
+    "a" : 136,
+    "b" : 202,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 140,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 80,
+    "b" : 78,
+    "f2" : "N-N ASSIGN[0]GETPROP[0]:ASSIGN[1]"
+  }, {
+    "a" : 384,
+    "b" : 136,
+    "f2" : "N-N FNPAR"
+  }, {
+    "a" : 138,
+    "b" : 144,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 104,
+    "b" : 136,
+    "f2" : "N-N CALL[0]:CALL[2]GETPROP[0]"
+  }, {
+    "a" : 384,
+    "b" : 138,
+    "f2" : "N-N FNPAR"
+  }, {
+    "a" : 174,
+    "b" : 58,
+    "f2" : "N-N ASSIGN[0]:ASSIGN[1]NEW[0]"
+  }, {
+    "a" : 174,
+    "b" : 206,
+    "f2" : "N-N ASSIGN[0]:ASSIGN[1]NEW[1]"
+  }, {
+    "a" : 58,
+    "b" : 40,
+    "f2" : "N-N  <- "
+  }, {
+    "a" : 136,
+    "b" : 362,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]"
+  }, {
+    "a" : 78,
+    "b" : 150,
+    "f2" : "N-N  <- "
+  }, {
+    "a" : 78,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 56,
+    "b" : 66,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]"
+  }, {
+    "a" : 136,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 206,
+    "b" : 162,
+    "f2" : "N-N GETPROP[0]GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 6,
+    "b" : 24,
+    "f2" : "N-N CALL[0]:CALL[1]GETPROP[1]"
+  }, {
+    "a" : 136,
+    "b" : 130,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]"
+  }, {
+    "a" : 174,
+    "b" : 138,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]GETELEM[0]"
+  }, {
+    "a" : 150,
+    "b" : 1,
+    "f2" : "ARG"
+  }, {
+    "a" : 6,
+    "b" : 400,
+    "f2" : "N-N  <- "
+  }, {
+    "a" : 56,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 56,
+    "b" : 62,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 104,
+    "b" : 80,
+    "f2" : "N-N FNPAR"
+  }, {
+    "a" : 80,
+    "b" : 84,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 208,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 104,
+    "b" : 1,
+    "f2" : "CALL"
+  }, {
+    "a" : 206,
+    "b" : 126,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 4,
+    "b" : 38,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 80,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 384,
+    "b" : 58,
+    "f2" : "N-N FNFNNEW"
+  }, {
+    "a" : 104,
+    "b" : 84,
+    "f2" : "N-N FNPROP"
+  }, {
+    "a" : 104,
+    "b" : 126,
+    "f2" : "N-N CALL[0]:CALL[2]GETPROP[1]"
+  }, {
+    "a" : 4,
+    "b" : 54,
+    "f2" : "N-N  <- "
+  }, {
+    "a" : 206,
+    "b" : 208,
+    "f2" : "N-N EQ[0]:EQ[1]"
+  }, {
+    "a" : 140,
+    "b" : 276,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]"
+  }, {
+    "a" : 10,
+    "b" : 6,
+    "f2" : "N-N CALL[0]:CALL[2]"
+  }, {
+    "a" : 104,
+    "b" : 78,
+    "f2" : "N-N FNPAR"
+  }, {
+    "a" : 174,
+    "b" : 26,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 136,
+    "b" : 126,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]"
+  }, {
+    "a" : 140,
+    "b" : 272,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 84,
+    "b" : 78,
+    "f2" : "N-N ASSIGN[0]GETPROP[1]:ASSIGN[1]"
+  }, {
+    "a" : 136,
+    "b" : 126,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 384,
+    "b" : 58,
+    "f2" : "N-N FNNEW"
+  }, {
+    "a" : 80,
+    "b" : 178,
+    "f2" : "N-N  <- "
+  }, {
+    "a" : 384,
+    "b" : 104,
+    "f2" : "N-N FNCALL"
+  }, {
+    "a" : 282,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 6,
+    "b" : 1,
+    "f2" : "PARARGCALL"
+  }, {
+    "a" : 6,
+    "b" : 38,
+    "f2" : "N-N CALL[0]:CALL[2]GETPROP[1]"
+  }, {
+    "a" : 4,
+    "b" : 1,
+    "f2" : "PAR"
+  }, {
+    "a" : 58,
+    "b" : 126,
+    "f2" : "N-N NEW[0]:NEW[1]GETPROP[1]"
+  }, {
+    "a" : 136,
+    "b" : 358,
+    "f2" : "N-N GETPROP[0]:GETPROP[1]"
+  }, {
+    "a" : 138,
+    "b" : 300,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[2]"
+  }, {
+    "a" : 138,
+    "b" : 298,
+    "f2" : "N-N CALL[0]GETPROP[0]:CALL[1]"
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 78, 80 ]
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 174 ]
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 136, 138, 140, 150, 156, 170, 174, 104, 58 ]
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 4, 6, 10 ]
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 56, 58 ]
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 206, 208, 174, 170, 58, 156, 138 ]
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 282, 174, 138, 170, 156 ]
+  }, {
+    "cn" : "!=",
+    "n" : [ 2, 104 ]
+  } ],
+  "assign" : [ {
+    "v" : 1,
+    "giv" : "*"
+  }, {
+    "v" : 2,
+    "giv" : ""
+  }, {
+    "v" : 4,
+    "inf" : "root"
+  }, {
+    "v" : 6,
+    "inf" : "factory"
+  }, {
+    "v" : 10,
+    "giv" : "define"
+  }, {
+    "v" : 24,
+    "giv" : "angular"
+  }, {
+    "v" : 26,
+    "giv" : "spin"
+  }, {
+    "v" : 38,
+    "giv" : "Spinner"
+  }, {
+    "v" : 54,
+    "giv" : "this"
+  }, {
+    "v" : 56,
+    "inf" : "angular"
+  }, {
+    "v" : 58,
+    "inf" : "Spinner"
+  }, {
+    "v" : 62,
+    "giv" : "module"
+  }, {
+    "v" : 78,
+    "inf" : "color"
+  }, {
+    "v" : 80,
+    "inf" : "opts"
+  }, {
+    "v" : 84,
+    "giv" : "color"
+  }, {
+    "v" : 104,
+    "inf" : "augmentOpts"
+  }, {
+    "v" : 126,
+    "giv" : "config"
+  }, {
+    "v" : 130,
+    "giv" : "spinif"
+  }, {
+    "v" : 136,
+    "inf" : "scope"
+  }, {
+    "v" : 138,
+    "inf" : "element"
+  }, {
+    "v" : 140,
+    "inf" : "attrs"
+  }, {
+    "v" : 144,
+    "giv" : "css"
+  }, {
+    "v" : 150,
+    "inf" : "cssColor"
+  }, {
+    "v" : 156,
+    "inf" : "stoped"
+  }, {
+    "v" : 162,
+    "giv" : "hideElement"
+  }, {
+    "v" : 170,
+    "inf" : "hideElement"
+  }, {
+    "v" : 174,
+    "inf" : "spinner"
+  }, {
+    "v" : 202,
+    "giv" : "$watch"
+  }, {
+    "v" : 206,
+    "inf" : "newValue"
+  }, {
+    "v" : 208,
+    "inf" : "oldValue"
+  }, {
+    "v" : 220,
+    "giv" : "stop"
+  }, {
+    "v" : 272,
+    "giv" : "hasOwnProperty"
+  }, {
+    "v" : 276,
+    "giv" : "spinIf"
+  }, {
+    "v" : 282,
+    "inf" : "newValue"
+  }, {
+    "v" : 298,
+    "giv" : "display"
+  }, {
+    "v" : 300,
+    "giv" : ""
+  }, {
+    "v" : 326,
+    "giv" : "none"
+  }, {
+    "v" : 358,
+    "giv" : "$on"
+  }, {
+    "v" : 362,
+    "giv" : "$destroy"
+  }, {
+    "v" : 384,
+    "giv" : "link"
+  } ]
+}   
+        </textarea><br>
+        <input type="button" value="Produce Graph" id="get-graph"></input><br>
+        <input type="button" value="Relayout Graph" id="layout-graph"></input><br>
+        <span id="msg"></span>
+      </div>
+    </div>
+
+    <div id="tab2">
+      <div id="js-container">
+        <textarea rows="40" cols="40" id="js-text"></textarea><br>
+        <input type="button" value="Extract Features" id="extract-features"></input><br>
+      </div>
+    </div>
+  </div>
+
+  <div id="graph-container"></div>  
+</div>
+<script>
+
+var nice2server = "http://127.0.0.1:5745/";
+
+function setMessage(msg) {
+  document.getElementById("msg").innerHTML = msg;
+}
+
+document.getElementById("get-graph").addEventListener("click", function(event){
+  
+  setMessage("Sending request...");
+  callServer(
+      nice2server,
+      "showgraph",
+      jQuery.parseJSON($("#query-text").val()),
+function(result) {
+  setMessage("Success");
+  createGraph(result);
+},
+function(err, status, thrown) {
+  setMessage("Error contacting " + server + "<br>" + status);
+});
+  
+});
+document.getElementById("layout-graph").addEventListener("click", function(event){
+  relayoutGraph();
+});
+
+document.getElementById("extract-features").addEventListener("click", function(event){
+  $("#query-text").val(UglifyJS.extractFeatures($("#js-text").val(), "", false, "ASTREL, FNAMES", false));
+  $("#tabs a")[0].click();
+});
+</script>
+
+<script type="text/javascript">
+//http://red-team-design.com/google-play-minimal-tabs-with-css3-jquery/
+function resetTabs(){
+    $("#content > div").hide(); //Hide all content
+    $("#tabs a").attr("id",""); //Reset id's      
+}
+
+var myUrl = window.location.href; //get URL
+var myUrlTab = myUrl.substring(myUrl.indexOf("#")); // For mywebsite.com/tabs.html#tab2, myUrlTab = #tab2     
+var myUrlTabName = myUrlTab.substring(0,4); // For the above example, myUrlTabName = #tab
+
+(function(){
+    $("#content > div").hide(); // Initially hide all content
+    $("#tabs li:first a").attr("id","current"); // Activate first tab
+    $("#content > div:first").fadeIn(); // Show first tab content
+    
+    $("#tabs a").on("click",function(e) {
+        e.preventDefault();
+        if ($(this).attr("id") == "current"){ //detection for current tab
+         return; 
+        }
+        else{             
+        resetTabs();
+        $(this).attr("id","current"); // Activate this
+        $($(this).attr('name')).fadeIn(); // Show content for current tab
+        }
+    });
+
+    for (i = 1; i <= $("#tabs li").length; i++) {
+      if (myUrlTab == myUrlTabName + i) {
+          resetTabs();
+          $("a[name='"+myUrlTab+"']").attr("id","current"); // Activate url tab
+          $(myUrlTab).fadeIn(); // Show url tab content        
+      }
+    }
+})()
+
+</script>
+
+</body>
+</html>

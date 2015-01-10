@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 2.8)
+
+INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/base)
+INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/inference)
+
+SET(TRAINING_CPP train.cpp)
+
+ADD_EXECUTABLE(train ${TRAINING_CPP})
+TARGET_LINK_LIBRARIES(train base inference gflags glog jsoncpp)

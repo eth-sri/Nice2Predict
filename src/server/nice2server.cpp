@@ -1,0 +1,111 @@
+/*
+   Copyright 2014 Software Reliability Lab, ETH Zurich
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ */
+
+#include "nice2server.h"
+
+#include "glog/logging.h"
+#include "jsoncpp/json/json.h"
+#include "jsonrpccpp/server.h"
+#include "jsonrpccpp/server/connectors/httpserver.h"
+
+#include "graph_inference.h"
+#include "inference.h"
+
+DEFINE_string(model, "model", "Input model files");
+
+class Nice2ServerInternal : public jsonrpc::AbstractServer<Nice2ServerInternal> {
+public:
+  Nice2ServerInternal(jsonrpc::HttpServer* server) : jsonrpc::AbstractServer<Nice2ServerInternal>(*server) {
+    bindAndAddMethod(
+        jsonrpc::Procedure("infer", jsonrpc::PARAMS_BY_NAME, jsonrpc::JSON_ARRAY,
+            // Parameters:
+            "query", jsonrpc::JSON_ARRAY,
+            "assign", jsonrpc::JSON_ARRAY,
+            NULL),
+        &Nice2ServerInternal::infer);
+    bindAndAddMethod(
+        jsonrpc::Procedure("nbest", jsonrpc::PARAMS_BY_NAME, jsonrpc::JSON_ARRAY,
+            // Parameters:
+            "n", jsonrpc::JSON_INTEGER,
+            "query", jsonrpc::JSON_ARRAY,
+            "assign", jsonrpc::JSON_ARRAY,
+            NULL),
+        &Nice2ServerInternal::nbest);
+
+    bindAndAddMethod(
+        jsonrpc::Procedure("showgraph", jsonrpc::PARAMS_BY_NAME, jsonrpc::JSON_OBJECT,
+            // Parameters:
+            "query", jsonrpc::JSON_ARRAY,
+            "assign", jsonrpc::JSON_ARRAY,
+            NULL),
+        &Nice2ServerInternal::showgraph);
+
+    inference_.LoadModel(FLAGS_model);
+  }
+
+  void infer(const Json::Value& request, Json::Value& response)
+  {
+    VLOG(3) << request.toStyledString();
+    std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
+    query->FromJSON(request["query"]);
+    std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
+    assignment->FromJSON(request["assign"]);
+    inference_.MapInference(query.get(), assignment.get());
+    assignment->ToJSON(&response);
+  }
+
+  void nbest(const Json::Value& request, Json::Value& response)
+  {
+    // int n = request["n"].asInt();
+    VLOG(3) << request.toStyledString();
+    std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
+    query->FromJSON(request["query"]);
+    std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
+    assignment->FromJSON(request["assign"]);
+    inference_.MapInference(query.get(), assignment.get());
+    assignment->ToJSON(&response);
+  }
+
+  void showgraph(const Json::Value& request, Json::Value& response)
+  {
+    VLOG(3) << request.toStyledString();
+    std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
+    query->FromJSON(request["query"]);
+    std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
+    assignment->FromJSON(request["assign"]);
+    inference_.DisplayGraph(query.get(), assignment.get(), &response);
+  }
+
+private:
+  GraphInference inference_;
+};
+
+Nice2Server::Nice2Server(jsonrpc::HttpServer* server)
+  : internal_(new Nice2ServerInternal(server)) {
+}
+
+Nice2Server::~Nice2Server() {
+  delete internal_;
+}
+
+void Nice2Server::Listen() {
+  internal_->StartListening();
+  LOG(INFO) << "Nice2Server started.";
+  for (;;) {
+    sleep(1);
+  }
+  internal_->StopListening();
+}
