@@ -1,11 +1,11 @@
-# 2Nice
+# Nice2Predict
 Learning framework for program property prediction.
 
 This is a backend for tools such as JSNice (http://jsnice.org/) for JavaScript that can predict program properties such as variable names and types. This backend is designed to extend the tool to multiple programming languages. For this reason, the machine learning machinery is extracted in this tool.
 
 To get a complete tool, one must include a parses for each programming language of interest and train on a lot of code.
 
-We have included an example frontend for JavaScript deminification at http://github.com/eth-srl/UnuglifyJS . This tool work together with the 2Nice server
+We have included an example frontend for JavaScript deminification at http://github.com/eth-srl/UnuglifyJS . This tool work together with the Nice2Server
 
 ## Compiling
 

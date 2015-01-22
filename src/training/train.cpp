@@ -448,7 +448,7 @@ int main(int argc, char** argv) {
     inference.LoadModel(FLAGS_out_model);
     PrecisionStats total_stats;
     Evaluate(input.get(), &inference, &total_stats);
-    // No need to print total_stats. Evaluate() alreadt prints info.
+    // No need to print total_stats. Evaluate() already prints info.
   } else {
     // Regular training.
     GraphInference inference;

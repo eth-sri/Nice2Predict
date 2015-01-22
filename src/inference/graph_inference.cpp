@@ -984,7 +984,9 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
 
 void GraphInference::PrepareForInference() {
   if (!label_checker_.IsLoaded()) {
+    LOG(INFO) << "Loading LabelChecker...";
     label_checker_.Load(FLAGS_valid_labels, &strings_);
+    LOG(INFO) << "LabelChecker loaded";
   }
   num_svm_training_samples_ = 0;
 
@@ -998,6 +1000,7 @@ void GraphInference::PrepareForInference() {
     best_features_for_a_type_[IntPair(f.a_, f.type_)].push_back(std::pair<double, int>(feature_weight, f.b_));
     best_features_for_b_type_[IntPair(f.b_, f.type_)].push_back(std::pair<double, int>(feature_weight, f.a_));
   }
+  LOG(INFO) << "Preparing GraphInference for MAP inference...";
   for (auto it = best_features_for_type_.begin(); it != best_features_for_type_.end(); ++it) {
     std::sort(it->second.begin(), it->second.end(), std::greater<std::pair<double, GraphFeature> >());
   }
@@ -1007,6 +1010,6 @@ void GraphInference::PrepareForInference() {
   for (auto it = best_features_for_b_type_.begin(); it != best_features_for_b_type_.end(); ++it) {
     std::sort(it->second.begin(), it->second.end(), std::greater<std::pair<double, int> >());
   }
-  LOG(INFO) << "GraphInference prepared for MAP inference...";
+  LOG(INFO) << "GraphInference prepared for MAP inference.";
 }
 

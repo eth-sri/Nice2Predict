@@ -42,20 +42,38 @@ void LabelChecker::Load(const std::string& filename, StringSet* ss) {
     }
     if (line.empty()) continue;
     if (line[0] == '+') {
-      std::regex re(line.c_str() + 1);
-      for (int label : strings) {
-        const char* strbegin = ss->getString(label);
-        const char* strend = strbegin + strlen(strbegin);
-        if (std::regex_match(strbegin, strend, re)) {
+      if (IsRegEx(line.c_str() + 1)) {
+        // Add regex.
+        std::regex re(line.c_str() + 1);
+        for (int label : strings) {
+          const char* strbegin = ss->getString(label);
+          const char* strend = strbegin + strlen(strbegin);
+          if (std::regex_match(strbegin, strend, re)) {
+            valid_labels_[label] = true;
+          }
+        }
+      } else {
+        // Add a single label as valid.
+        int label = ss->findString(line.c_str() + 1);
+        if (label >= 0) {
           valid_labels_[label] = true;
         }
       }
     } else if (line[0] == '-') {
-      std::regex re(line.c_str() + 1);
-      for (int label : strings) {
-        const char* strbegin = ss->getString(label);
-        const char* strend = strbegin + strlen(strbegin);
-        if (std::regex_match(strbegin, strend, re)) {
+      if (IsRegEx(line.c_str() + 1)) {
+        // Remove a regex.
+        std::regex re(line.c_str() + 1);
+        for (int label : strings) {
+          const char* strbegin = ss->getString(label);
+          const char* strend = strbegin + strlen(strbegin);
+          if (std::regex_match(strbegin, strend, re)) {
+            valid_labels_[label] = false;
+          }
+        }
+      } else {
+        // Set a single label as invalid.
+        int label = ss->findString(line.c_str() + 1);
+        if (label >= 0) {
           valid_labels_[label] = false;
         }
       }
@@ -66,4 +84,19 @@ void LabelChecker::Load(const std::string& filename, StringSet* ss) {
     }
   }
   f.close();
+}
+
+bool LabelChecker::IsRegEx(const char* c) const {
+  const char* curr = c;
+  while (*curr) {
+    // Check for metacharacters.
+    if (*curr == '.' || *curr == '?' || *curr == '+' || *curr == '*' ||
+        *curr == '(' || *curr == ')' ||
+        *curr == '[' || *curr == ']' ||
+        *curr == '{' || *curr == '}' ||
+        *curr == '\\' || *curr == '|' ||
+        *curr == '$' || *curr == '^') return true;
+    ++curr;
+  }
+  return false;
 }

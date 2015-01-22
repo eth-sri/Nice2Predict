@@ -32,6 +32,8 @@ public:
   }
 
 private:
+  bool IsRegEx(const char* c) const;
+
   google::dense_hash_map<int, bool> valid_labels_;
   bool is_loaded_;
 };
