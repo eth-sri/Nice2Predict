@@ -935,20 +935,29 @@ void GraphInference::DisplayGraph(
       node["id"] = Json::Value(StringPrintf("N%d", static_cast<int>(i)));
       int label = a->assignments_[i].label;
       node["label"] = Json::Value(label < 0 ? StringPrintf("%d", label).c_str() : strings_.getString(label));
-      node["color"] = Json::Value(a->assignments_[i].must_infer ? "#33c" : "#500");
+      node["color"] = Json::Value(a->assignments_[i].must_infer ? "#6c9ba4" : "#96816a");
       nodes.append(node);
     }
   }
+  std::unordered_map<IntPair, std::string> dedup_arcs;
+  for (const GraphQuery::Arc& arc : a->query_->arcs_) {
+    std::string& s = dedup_arcs[IntPair(std::min(arc.node_a, arc.node_b),std::max(arc.node_a, arc.node_b))];
+    if (!s.empty()) {
+      s.append(", ");
+    }
+    StringAppendF(&s, "%s - %.2f",
+            strings_.getString(arc.type),
+            a->GetNodePairScore(*this, arc.node_a, arc.node_b, a->assignments_[arc.node_a].label, a->assignments_[arc.node_b].label));
+  }
+
   Json::Value& edges = (*graph)["edges"];
   int edge_id = 0;
-  for (const GraphQuery::Arc& arc : a->query_->arcs_) {
+  for (auto it = dedup_arcs.begin(); it != dedup_arcs.end(); ++it) {
     Json::Value edge;
     edge["id"] = Json::Value(StringPrintf("Edge%d", edge_id));
-    edge["label"] = Json::Value(StringPrintf("%s - %.2f",
-        strings_.getString(arc.type),
-        a->GetNodePairScore(*this, arc.node_a, arc.node_b, a->assignments_[arc.node_a].label, a->assignments_[arc.node_b].label)));
-    edge["source"] = Json::Value(StringPrintf("N%d", static_cast<int>(arc.node_a)));
-    edge["target"] = Json::Value(StringPrintf("N%d", static_cast<int>(arc.node_b)));
+    edge["label"] = Json::Value(it->second);
+    edge["source"] = Json::Value(StringPrintf("N%d", static_cast<int>(it->first.first)));
+    edge["target"] = Json::Value(StringPrintf("N%d", static_cast<int>(it->first.second)));
     edges.append(edge);
     edge_id++;
   }

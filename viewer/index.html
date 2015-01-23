@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/html" xmlns="http://www.w3.org/1999/html">
 <head>
 <meta charset="UTF-8">
-<title>2Nice Viewer</title>
+<title>Nice2Predict</title>
 <style>
   #graph-container {
     width: 100%;
@@ -66,17 +66,19 @@
         <div id="nav">
             <div class='srl'>
 					<span class="main_logo">
-					<a href="http://www.srl.inf.ethz.ch" target="_blank"><img id="srl_logo" src="img/2nice.png"></a>
+					<a href="http://www.srl.inf.ethz.ch" target="_blank"><img id="srl_logo" src="img/logo.png"></a>
 					</span>
 					<span class='tagline'>
 						<span class='large_screen'>
-							Learning and Inference Framework for Structured Prediction
+							&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Learning and Inference Framework for Structured Prediction
 						</span>
 					</span>
             </div>
             <ul class="clearfix">
                 <li class="selected"><a class="navigation" href="#home"><b>Home</b></a></li>
-                <li class=""><a class="navigation" href="#try-online"><b>Try Online</b></a></li>
+                <!--<li class=""><a class="navigation" href="#download"><b>Download</b></a></li>-->
+                <li class=""><a class="navigation" href="#try-online"><b>Live Demo</b></a></li>
+                <!--<li class=""><a class="navigation" href="#tutorial"><b>Tutorial</b></a></li>-->
                 <!--<li><a href="#" id="about"><b>About</b></a></li>-->
             </ul>
         </div>
@@ -85,63 +87,79 @@
 
 <div id="home" class="welcome">
 
-    <div  style="float: left; margin-left:20px; margin-top: 70px;">
-
-        <div class="sharebox">
-            <a href="http://twitter.com/share" class="twitter-share-button"  data-text="EventRacer" data-via="">Tweet</a>
-        </div>
-        <div class="sharebox">
-            <div class="g-plusone" data-size="medium"></div>
-        </div>
-        <div class="sharebox" style="margin-right: 30px;">
-            <div class="fb-like" data-href="http://www.eventracer.org/android" data-width="120" data-layout="button_count" data-action="like" data-show-faces="true" data-share="false"></div>
-        </div>
+    </br>
+    <div  class="post" >
+<!--        <h3>What is Nice2Predict?</h3>-->
+        <p class="highlight">
+            Nice2Predict is an efficient and scalable open-source framework for structured prediction on programming related problems.
+			Tools such as the statistical JavaScript deobfuscator <a href="http://jsnice.org/">JSNice</a> are based on Nice2Predict technology.<br>Below, is a schema of how the prediction works:
+        </p>
+        <!-- To find out more <a class="navigation" href="#try-online">try the online demo</a> or explore the <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">GitHub repository</a>.-->
 
     </div>
 
-    </br>
-    <div class="post" >
-        <h3>What is 2 Nice?</h3>
+    <div class="tiled-bg" style="margin-top: -40px;">
+        <img title="Nice2Predict overview" alt="Nice2Predict overview" src="img/architecture.png" style="height: 340px;"></img>
+    </div>
+
+
+
+    <!--<div class="post" style="margin-top: 10px;">-->
+        <!--&lt;!&ndash;<h3>Open Source</h3>&ndash;&gt;-->
+        <!--&lt;!&ndash;<div class="three_cols clearfix">&ndash;&gt;-->
+
+            <!--<div class="two_col1">-->
+                <!--&lt;!&ndash;<h4>UnuglifyJS</h4>&ndash;&gt;-->
+                <!--<a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">-->
+                    <!--<img class="icon" src="img/github_logo.png" title="GitHub" alt="GitHub" />-->
+                <!--</a>-->
+                <!--<p>Sample client for </br>JavaScript name prediction</p>-->
+            <!--</div>-->
+
+            <!--<div class="two_col2">-->
+                <!--&lt;!&ndash;<h4>2 Nice</h4>&ndash;&gt;-->
+                <!--<a href="https://github.com/eth-srl/Nice2Predict" target="_blank">-->
+                    <!--<img class="icon clearfix" src="img/github_logo.png" title="GitHub" alt="GitHub" />-->
+                <!--</a>-->
+            <!--</div>-->
+
+        <!--&lt;!&ndash;</div>&ndash;&gt;-->
+    <!--</div>-->
+
+    <div class="post" style="margin-bottom: 100px; margin-top: 10px; ">
+
+<!--        <h3>Using Nice2Predict</h3>-->
+        <!--& Getting Started-->
         <p class="highlight">
-        2 Nice is an open-source framework providing state-of-the-art machine learning techniques for structured prediction.
-            It provides an efficient, scalable and parallel implementation that learns from massive amounts of data.
-            To find out more <a class="navigation" href="#try-online">try the online demo</a>, read the <a>tutorial</a> or explore the <a href="https://github.com/eth-srl/2Nice" target="_blank">GitHub repository</a>.
+            Nice2Predict and a sample client UnuglifyJS are available on GitHub.
+		</p>
+		<p class="highlight">
+            UnuglifyJS deobfuscates JavaScript by renaming variable names to names learnt from large amount of non-obfuscated JavaScript code. 
+<!--In the above schema, UnuglifyJS defines variable names are unknown properties to predict and Nice2Predict performs the Structured SVM learning and the MAP Inference.-->
         </p>
 
-    </div>
-
-    <div class="tiled-bg" style="margin-top: -20px;">
-        <img title="2 Nice framework overview" alt="2 Nice framework overview" src="img/architecture.png" style="height: 340px;"></img>
-    </div>
 
 
+        <div class="two_col1" style="margin-top: -10px;">
+            <h4>UnuglifyJS client</h4></br>
+            <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">
+                <img class="icon" src="img/github_logo.png" title="GitHub" alt="GitHub" />
+            </a>
+        </div>
 
-    <div class="post" style="margin-top: 10px;">
-        <!--<h3>Open Source</h3>-->
-        <!--<div class="three_cols clearfix">-->
+        <div class="two_col2" style="margin-top: -10px;">
+            <h4>Nice2Predict</h4></br>
+            <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">
+                <img class="icon clearfix" src="img/github_logo.png" title="GitHub" alt="GitHub" />
+            </a>
+        </div>
 
-            <div class="two_col1">
-                <!--<h4>UnuglifyJS</h4>-->
-                <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">
-                    <img class="icon" src="img/github_logo.png" title="GitHub" alt="GitHub" />
-                </a>
-                <p>Sample client for </br>JavaScript name prediction</p>
-            </div>
-
-            <div class="two_col2">
-                <!--<h4>2 Nice</h4>-->
-                <a href="https://github.com/eth-srl/2Nice" target="_blank">
-                    <img class="icon clearfix" src="img/github_logo.png" title="GitHub" alt="GitHub" />
-                </a>
-            </div>
-
-        <!--</div>-->
     </div>
 </div>
 
-<div class="welcome-footer">
-    <a class="navigation" href="#try-online"><h3 style="margin: 10px 0px;">Try Online</h3><img src="img/down_arrow.png" style="width: 32px;"/> </a>
-</div>
+<!--<div class="welcome-footer">-->
+    <!--<a class="navigation" href="#try-online"><h3 style="margin: 10px 0px;">Live Demo</h3><img src="img/down_arrow.png" style="width: 32px;"/> </a>-->
+<!--</div>-->
 
 <div id="dropdown-2" class="dropdown dropdown-tip">
       <ul class="dropdown-menu" id="rename-items">
@@ -151,9 +169,15 @@
   </div>
 
 <div class="container" id="try-online">
-    <div class="content_wrapper" id="tool">
-        <div class='clearfix app_section'>
 
+    <div class="content_wrapper" id="tool">
+
+        <div class='clearfix app_section'>
+            <div style="text-align: center;">
+                <a class="navigation" href="#try-online"><h3 style="margin: 10px 0px;">Live Demo</h3><img src="img/down_arrow.png" style="width: 32px;"/> </a>
+                </br>
+                </br>
+            </div>
             <div class='input_col'>
 
                 <ul id="tabs-left" class="htabs">
@@ -174,24 +198,15 @@
                     <div class="intro_slide info">
                         Put your JavaScript here that you want to deminify. We will rename variables and parameters to names that we learn from thousands of open source projects.
                         To proceed to next step click the 'extract features' button.
-                        Note that for this demo to work you need to train the statistical model first and have a running instance of 2Nice server.
-                        Please refer to the documentation in <a href="https://github.com/eth-srl/2Nice" target="_blank">2Nice</a> and <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">UnuglifyJS</a> for more information.
+                        To run this demo locally, please refer to the step by step tutorial in <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">UnuglifyJS</a>.
                     </div>
 
-                    <textarea rows="16" cols="120" id="js-text" class='input_section '>
-function chunkData(e, t) {
-  var n = [];
-  var r = e.length;
-  var i = 0;
-  for (; i < r; i += t) {
-    if (i + t < r) {
-      n.push(e.substring(i, i + t));
-    } else {
-      n.push(e.substring(i, r));
-    }
-  }
-  return n;
-}                   </textarea>
+<textarea rows="16" cols="120" id="js-text" class='input_section '>
+function f(a,b,c) {
+  b.open('GET', a, false);
+  b.send(c);
+}
+</textarea>
                     </div>
 
                     <div id="tab2">
@@ -201,11 +216,11 @@ function chunkData(e, t) {
                             </h5>
 
                             <input type="button" class="submit-button" id="get-graph"
-                                   value="&nbsp;&nbsp;Produce Graph&nbsp;&nbsp;"/>
+                                   value="&nbsp;&nbsp;Display Predictions Graph&nbsp;&nbsp;"/>
                         </div>
 
                         <div class="intro_slide info">
-                            UnuglifyJS client is used to extract properties and features from the JavaScript program. The results are represented in a JSON format which the 2Nice server can process.
+                            UnuglifyJS client is used to extract properties and features from the JavaScript program. The results are represented in a JSON format which the Nice2Predict server can process.
                             The JSON consists of two parts 'query' describing the features and 'assign' describing the properties and their initial assignments with the attribute 'giv' or 'inf' for known and unknown properties respectively.
                             For example, the feature {"a": 0,	"b": 1,	"f2": ":VarDef:"} defines a relation between unknown property {"v": 0,	"inf": "r"} and known property {"v": 1,	"giv": "length"} extracted from the code snippet 'var r = e.length;'.
                         </div>
@@ -218,7 +233,7 @@ function chunkData(e, t) {
             <div class='results_col'>
 
                 <ul id="tabs-right" class="htabs">
-                    <li><a href="#" name="#tab3">Computed Predictions</a></li>
+                    <li><a href="#" name="#tab3">Predictions Graph</a></li>
                     <li><a href="#" name="#tab4">Output</a></li>
                 </ul>
 
@@ -234,10 +249,9 @@ function chunkData(e, t) {
                         </div>
 
                         <div class="intro_slide info">
-                            The extracted properties and features and sent to the 2Nice server for MAP inference which calculates the most likely assignment of unknown properties.
-                            Results are visualized in the graph (Conditional Random Field) below where the known properties are red nodes, unknown properties are blue nodes and the edges are features.
+                            The extracted properties and features and sent to the Nice2Predict server for MAP inference which calculates the most likely assignment of unknown properties.
+                            Results are visualized in the graph (Conditional Random Field) below where the known properties are brown nodes, unknown properties are cyan nodes and the edges are features.
                             Edge labels show the feature name together with the score of the best assignment (higher score is better).
-                            Features with score 0 are those not seen in the training data (this happens for example with features relating function name to variables).
                         </div>
 
                         <div id="graph-container" class="CodeMirror input_section"></div>
@@ -266,7 +280,7 @@ function chunkData(e, t) {
                         <div class='input_header clearfix'><h5>Welcome to UnuglifyJS</h5>
                         </div>
                         <div class="intro_slide">
-                            Welcome to a sample client of the <a href="https://github.com/eth-srl/2Nice" target="_blank">2Nice</a> framework called <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">UnuglifyJS</a> — a JavaScript deminifier implementation
+                            Welcome to a sample client of the <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">Nice2Predict</a> framework called <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">UnuglifyJS</a> — a JavaScript deminifier implementation
                             which extracts properties and features as described in <a href="http://www.srl.inf.ethz.ch/jsnice" target="_blank">JSNice</a>.
                             The UnuglifyJS client takes as an input JavaScript program with minified names and is responsible for:
 
@@ -277,14 +291,14 @@ function chunkData(e, t) {
                                     variable r appears together with accessing attribute length in the code snippet 'var r = e.length;'</li>
                             </ul>
 
-                            Given the extracted properties and features, we use <a href="https://github.com/eth-srl/2Nice" target="_blank">2Nice</a> framework to train a statistical model and to answer subsequent MAP inference queries (i.e., finding the best assignment of labels to properties).
+                            Given the extracted properties and features, we use <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">Nice2Predict</a> framework to train a statistical model and to answer subsequent MAP inference queries (i.e., finding the best assignment of labels to properties).
                             </br></br>
                             The whole process of name prediction is illustrated in four steps. To start, provide an input JavaScript or use the default one provided.
                             The relevant JavaScript functionality implementing calling the server and the UnunglifyJS client can be found at the end of file <a href="js/global.js" target="_blank">js/global.js</a>.
                             </br></br>
                             <div>
                                 By using this service you warrant that all your entries are in your sole responsibility and do not infringe any laws or third-party rights like copyrights and the like. ETH and its employees cannot be held liable in any way.
-                                Click to <a href="https://github.com/eth-srl/2Nice" target="_blank">learn more about 2Nice and the terms and conditions of use</a> (disclaimer).
+                                Click to <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">learn more about Nice2Predict and the terms and conditions of use</a> (disclaimer).
                             </div>
                         </div>
                     </div>
@@ -340,13 +354,37 @@ init_tabs("right");
 </script>
 
   <div id="footer" class='content_wrapper'>
-    <p>&copy; <a href="http://www.srl.inf.ethz.ch" target="_blank">Software Reliability Lab</a>, <a href="http://www.inf.ethz.ch" target="_blank">Computer Science Department</a>, <a href="http://www.ethz.ch/index_EN" target="_blank">ETH Zurich</a></p>
+    <div  style="float: left; margin-top: 2px;">
+        <div class="sharebox">
+            <a href="http://twitter.com/share" class="twitter-share-button"  data-text="Nice 2 Predict" data-via="">Tweet</a>
+        </div>
+        <div class="sharebox">
+            <div class="g-plusone" data-size="medium"></div>
+        </div>
+        <div class="sharebox" style="margin-right: 30px; margin-top: -5px;">
+            <div class="fb-like" data-href="http://www.nice2predict.org" data-width="120" data-layout="button_count" data-action="like" data-show-faces="true" data-share="false"></div>
+        </div>
+    </div>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;&copy; <a href="http://www.srl.inf.ethz.ch" target="_blank">Software Reliability Lab</a>, <a href="http://www.inf.ethz.ch" target="_blank">Computer Science Department</a>, <a href="http://www.ethz.ch/index_EN" target="_blank">ETH Zurich</a></p>
+    <p>&nbsp;</p>
+
   </div>
 
 <script src="js/jquery.nav.js"></script>
+<script src="js/nav.js"></script>
   <script src="js/global.js"></script>
   <script src="js/jquery.dropdown.min.js"></script>
 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-58857416-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
 
 </body>
 </html>

@@ -21,15 +21,15 @@ function createGraph(g) {
       type: 'canvas'
     },
     settings: {
-      edgeLabelSize: 'proportional',
-      defaultEdgeLabelColor: "#bdb"
+      edgeLabelSize: 'proportional',      
+      defaultEdgeLabelColor: "#333"
     }
   });
   relayoutGraph();
 }
 
 function relayoutGraph() {
-  sgraph.startForceAtlas2({worker: true, barnesHutOptimize: false});
+  sgraph.startForceAtlas2({worker: true, barnesHutOptimize: false, outboundAttractionDistribution:true, iterationsPerRender:3});
   var sgr = sgraph;
   setTimeout(function() {
     if (sgraph == sgr) {
@@ -66,7 +66,7 @@ function createGraphRepresentation(g) {
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        label: edge.label,
+        label: edge.label
       };
     repr.edges[i] = newedge;
   }  

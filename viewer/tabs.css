@@ -1,4 +1,4 @@
-#tabs {
+.htabs {
   overflow: hidden;
   width: 100%;
   margin: 0;
@@ -6,12 +6,12 @@
   list-style: none;
 }
 
-#tabs li {
+.htabs li {
   float: left;
   margin: 0 -15px 0 0;
 }
 
-#tabs a {
+.htabs a {
   float: left;
   position: relative;
   padding: 0 40px;
@@ -27,18 +27,18 @@
   filter: alpha(opacity=30);    
 }
 
-#tabs a:hover,
-#tabs a:focus {
+.htabs a:hover,
+.htabs a:focus {
   border-bottom-color: #2ac7e1;
   opacity: 1;
   filter: alpha(opacity=100);
 }
 
-#tabs a:focus {
+.htabs a:focus {
   outline: 0;
 }
 
-#tabs #current {
+.htabs #current {
   z-index: 3;
   border-bottom-color: #3d3d3d;
   opacity: 1;
