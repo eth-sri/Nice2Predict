@@ -1,7 +1,7 @@
 div.welcome {
-  height: 82vh;
+  /*height: 80vh;*/
   text-align: center;
-  min-height:780px;
+  /*height:780px;*/
 }
 
 div.welcome-footer {
@@ -10,22 +10,27 @@ div.welcome-footer {
   text-align: center;
 }
 
+img.photo {
+  height: 120px;
+}
+
 #logo-main {padding-top: 20px; margin:0px auto 20px;width:auto;display:block;}
 
 div.tiled-bg {
   background: url('../img/tile.png') repeat;
   opacity : 1;
   display: block;
-  height:340px;
+  height:360px;
   width: 100%;
   box-shadow: 0px 2px 4px 2px rgba(0, 0, 0, 0.1);
 }
 
 img.icon {
-  width: 140px;
+  width: 100px;
   display: block;
   margin-left: auto;
   margin-right: auto;
+  margin-top: 14px;
 }
 
 .copy, body {
@@ -34,9 +39,9 @@ img.icon {
   font-weight: 400; }
 
 .heading, h1, h2, h3, h5, .tagline, #nav li, input.submit-button, input.settings {
-  font-family: din-condensed-web, "Abel", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: din-condensed-web, "Helvetica Neue", Helvetica, Arial, sans-serif;
   text-transform: uppercase;
-  font-weight: bold; }
+   }
 
 .code_block, .input_section, input.square, .CodeMirror-wrap {
   font-family: "source-code-pro","Source Code Pro",sans-serif;
@@ -119,6 +124,10 @@ h5 {
   padding: 10px 0;
    }
 
+.border_top {
+  border-top:2px solid #d9d9d9;
+}
+
 .post p {
   margin: 14px 0 14px 0;
   }
@@ -155,6 +164,18 @@ h5 {
 .post .three_cols img {
   margin: 0 auto; }
 
+.post .four_cols {
+  padding-top: 20px; }
+
+.post .four_cols > div {
+  float: left;
+  margin: 0 20px;
+  width: 160px;
+  text-align: center; }
+
+.post .four_cols img {
+  margin: 0 auto; }
+
 #tool.post {
   border: 0;
   margin-bottom: 180px; }
@@ -164,13 +185,23 @@ h5 {
   margin: 10px 0;
   display: block; }
 
-#header_wrapper {
+#header_wrapper  {
   background: #5e57a6;
   width: 100%;
   top: 0;
   left: 0;
   position: fixed;
   z-index: 100000; }
+
+#footer_wrapper {
+  background: #5e57a6;
+  width: 100%;
+  padding-bottom: 50px;
+}
+
+#footer_wrapper h3, #footer_wrapper p, #footer_wrapper a {
+  color: #FFFFFF;
+}
 
 #header {
   width: 100%;
@@ -188,7 +219,7 @@ h5 {
   margin-left: 3.5%;
   min-width: 70%; }
   .srl .main_logo {
-    width: 8.4em;
+    width: 7.9em;
     display: inline-block;
     float: left; }
   .srl .tagline {
@@ -399,7 +430,7 @@ iframe#tool_results {
     margin: 0 1em; }
 
 .sharebox {
-  float: right; }
+  float: left; }
 
 .g_plus {
   margin-right: 25px; }

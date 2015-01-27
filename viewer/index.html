@@ -11,8 +11,16 @@
   }
 </style>
 
-<link rel="shortcut icon" type="image/ico" href="favicon.ico"/>
+    <!-- social sharing metadata -->
+    <meta property="og:title" content="Nice2Predict" />
+    <meta property="og:description" content="Nice2Predict: Learning and Inference Framework for Structured Prediction." />
+    <meta property="og:image" content="http://www.nice2predict.org/img/logo_share.png" />
 
+
+<link rel="shortcut icon" type="image/ico" href="favicon.ico"/>
+    <!--<style type="text/css">-->
+        <!--.wf-loading body {visibility: hidden;}-->
+    <!--</style>-->
 <script src="jquery/jquery-2.1.1.min.js"></script>
 <script src="sigmajs/sigma.min.js"></script>
 <script src="sigmajs/plugins/sigma.layout.forceAtlas2.min.js"></script>
@@ -25,8 +33,8 @@
 <link rel="stylesheet" href="tabs.css">
 
 
-<link rel="stylesheet" type="text/css" href="css/Abel_font.css">
-<link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Abel">
+<!--<link rel="stylesheet" type="text/css" href="css/Abel_font.css">-->
+<!--<link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Abel">-->
 <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Source+Code+Pro">
 
 <!--<link rel="stylesheet" type="text/css" href="css/DINWeb_font.css">-->
@@ -37,6 +45,8 @@
 <link rel="stylesheet" href="css/codemirror.css">
 <script src="js/javascript.js"></script>
 
+    <script type="text/javascript" src="//use.typekit.net/svt4rus.js"></script>
+    <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
 
 <script>
     $(function() {
@@ -47,9 +57,13 @@
 
                 var target = $(this.hash);
                 target = target.length ? target : $('[name=' + this.hash.slice(1) +']');
+                var offset_top = 50;
+                if (target.selector == "#try-online") {
+                    offset_top += 30;
+                }
                 if (target.length) {
                     $('html,body').animate({
-                        scrollTop: target.offset().top - 50
+                        scrollTop: target.offset().top - offset_top
                     }, 1000);
                     return false;
                 }
@@ -75,80 +89,75 @@
 					</span>
             </div>
             <ul class="clearfix">
-                <li class="selected"><a class="navigation" href="#home"><b>Home</b></a></li>
-                <!--<li class=""><a class="navigation" href="#download"><b>Download</b></a></li>-->
-                <li class=""><a class="navigation" href="#try-online"><b>Live Demo</b></a></li>
+                <li class="selected"><a class="navigation" href="#home">Home</a></li>
+                <li class=""><a class="navigation" href="#download">Download</a></li>
+                <li class=""><a class="navigation" href="#try-online">Live Demo</a></li>
+                <li class=""><a class="navigation" href="#team">Team</a></li>
                 <!--<li class=""><a class="navigation" href="#tutorial"><b>Tutorial</b></a></li>-->
                 <!--<li><a href="#" id="about"><b>About</b></a></li>-->
             </ul>
         </div>
+
     </div>
 </div>
 
 <div id="home" class="welcome">
 
-    </br>
-    <div  class="post" >
+    </br> </br> </br>
+    <div class="sharebox_top" style="margin: 0px auto; max-width: 1500px; width: 100%;">
+        <div class="sharebox">
+            <a href="http://twitter.com/share" class="twitter-share-button"  data-text="Nice 2 Predict" data-via="">Tweet</a>
+        </div>
+        <div class="sharebox">
+            <div class="g-plusone" data-size="medium"></div>
+        </div>
+        <div class="sharebox" style="margin-right: 30px; margin-top: -5px;">
+            <div class="fb-like" data-href="http://www.nice2predict.org" data-width="120" data-layout="button_count" data-action="like" data-show-faces="true" data-share="false"></div>
+        </div>
+    </div>
+    <div  class="post" style="margin-top: 0px; padding-top: 0px;">
 <!--        <h3>What is Nice2Predict?</h3>-->
+
+        <!--<p class="highlight">-->
+            <!--Nice2Predict is an efficient and scalable open-source framework for structured prediction.-->
+			<!--Tools such as the statistical JavaScript deobfuscator <a target="_blank" href="http://jsnice.org/">JSNice</a> are based on Nice2Predict. Below, is a schema of how the prediction works:-->
+        <!--</p>-->
         <p class="highlight">
             Nice2Predict is an efficient and scalable open-source framework for structured prediction on programming related problems.
-			Tools such as the statistical JavaScript deobfuscator <a href="http://jsnice.org/">JSNice</a> are based on Nice2Predict technology.<br>Below, is a schema of how the prediction works:
+			Tools such as the statistical JavaScript deobfuscator <a href="http://jsnice.org/">JSNice</a> are based on Nice2Predict technology.
+            <br>Below, is a schema of how the prediction works:
         </p>
+        <!--</br>-->
         <!-- To find out more <a class="navigation" href="#try-online">try the online demo</a> or explore the <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">GitHub repository</a>.-->
 
     </div>
 
     <div class="tiled-bg" style="margin-top: -40px;">
-        <img title="Nice2Predict overview" alt="Nice2Predict overview" src="img/architecture.png" style="height: 340px;"></img>
+        <img title="Nice2Predict overview" alt="Nice2Predict overview" src="img/architecture.png" style="height: 340px; margin: 10px 0px;"></img>
     </div>
 
 
+    <div id="download" class="post" style="margin-bottom: 80px; margin-top: 10px; ">
 
-    <!--<div class="post" style="margin-top: 10px;">-->
-        <!--&lt;!&ndash;<h3>Open Source</h3>&ndash;&gt;-->
-        <!--&lt;!&ndash;<div class="three_cols clearfix">&ndash;&gt;-->
-
-            <!--<div class="two_col1">-->
-                <!--&lt;!&ndash;<h4>UnuglifyJS</h4>&ndash;&gt;-->
-                <!--<a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">-->
-                    <!--<img class="icon" src="img/github_logo.png" title="GitHub" alt="GitHub" />-->
-                <!--</a>-->
-                <!--<p>Sample client for </br>JavaScript name prediction</p>-->
-            <!--</div>-->
-
-            <!--<div class="two_col2">-->
-                <!--&lt;!&ndash;<h4>2 Nice</h4>&ndash;&gt;-->
-                <!--<a href="https://github.com/eth-srl/Nice2Predict" target="_blank">-->
-                    <!--<img class="icon clearfix" src="img/github_logo.png" title="GitHub" alt="GitHub" />-->
-                <!--</a>-->
-            <!--</div>-->
-
-        <!--&lt;!&ndash;</div>&ndash;&gt;-->
-    <!--</div>-->
-
-    <div class="post" style="margin-bottom: 100px; margin-top: 10px; ">
-
-<!--        <h3>Using Nice2Predict</h3>-->
-        <!--& Getting Started-->
+        <!--<h3>Download</h3>-->
         <p class="highlight">
-            Nice2Predict and a sample client UnuglifyJS are available on GitHub.
+            Nice2Predict framework and a sample client UnuglifyJS (a simpler open-source version of JavaScript deobfuscator <a target="_blank" href="http://jsnice.org/">JSNice</a>) are available on GitHub.
 		</p>
-		<p class="highlight">
-            UnuglifyJS deobfuscates JavaScript by renaming variable names to names learnt from large amount of non-obfuscated JavaScript code. 
-<!--In the above schema, UnuglifyJS defines variable names are unknown properties to predict and Nice2Predict performs the Structured SVM learning and the MAP Inference.-->
-        </p>
+		<!--<p class="highlight">-->
+            <!--UnuglifyJS deobfuscates JavaScript by renaming variable names to names learnt from large amount of non-obfuscated JavaScript code.-->
+        <!--</p>-->
 
 
 
         <div class="two_col1" style="margin-top: -10px;">
-            <h4>UnuglifyJS client</h4></br>
+            <h4>UnuglifyJS client</h4>
             <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">
                 <img class="icon" src="img/github_logo.png" title="GitHub" alt="GitHub" />
             </a>
         </div>
 
         <div class="two_col2" style="margin-top: -10px;">
-            <h4>Nice2Predict</h4></br>
+            <h4>Nice2Predict</h4>
             <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">
                 <img class="icon clearfix" src="img/github_logo.png" title="GitHub" alt="GitHub" />
             </a>
@@ -168,7 +177,7 @@
       </ul>
   </div>
 
-<div class="container" id="try-online">
+<div class="container" id="try-online" style="margin-top: -40px;">
 
     <div class="content_wrapper" id="tool">
 
@@ -244,8 +253,10 @@ function f(a,b,c) {
                         <h5><span id="resultslabel"></span>
                             <!--<div class='large_screen title'>Step 3</div> - Find the Best Assignment-->
                         </h5>
-                            <input type="button" class="submit-button" id="produce-outputjs"
+                            <input type="button" class="submit-button hidden" id="produce-outputjs"
                                    value="&nbsp;&nbsp;Generate Output&nbsp;&nbsp;"/>
+                      <input type="button" class="submit-button hidden" id="map-inference"
+                                   value="&nbsp;&nbsp;Run MAP Inference&nbsp;&nbsp;"/>
                         </div>
 
                         <div class="intro_slide info">
@@ -294,7 +305,7 @@ function f(a,b,c) {
                             Given the extracted properties and features, we use <a href="https://github.com/eth-srl/Nice2Predict" target="_blank">Nice2Predict</a> framework to train a statistical model and to answer subsequent MAP inference queries (i.e., finding the best assignment of labels to properties).
                             </br></br>
                             The whole process of name prediction is illustrated in four steps. To start, provide an input JavaScript or use the default one provided.
-                            The relevant JavaScript functionality implementing calling the server and the UnunglifyJS client can be found at the end of file <a href="js/global.js" target="_blank">js/global.js</a>.
+                            For more detailed information please refer to the documentation at <a href="https://github.com/eth-srl/UnuglifyJS" target="_blank">UnuglifyJS</a>.
                             </br></br>
                             <div>
                                 By using this service you warrant that all your entries are in your sole responsibility and do not infringe any laws or third-party rights like copyrights and the like. ETH and its employees cannot be held liable in any way.
@@ -354,21 +365,75 @@ init_tabs("right");
 </script>
 
   <div id="footer" class='content_wrapper'>
-    <div  style="float: left; margin-top: 2px;">
-        <div class="sharebox">
-            <a href="http://twitter.com/share" class="twitter-share-button"  data-text="Nice 2 Predict" data-via="">Tweet</a>
-        </div>
-        <div class="sharebox">
-            <div class="g-plusone" data-size="medium"></div>
-        </div>
-        <div class="sharebox" style="margin-right: 30px; margin-top: -5px;">
-            <div class="fb-like" data-href="http://www.nice2predict.org" data-width="120" data-layout="button_count" data-action="like" data-show-faces="true" data-share="false"></div>
-        </div>
-    </div>
+
     <p>&nbsp;&nbsp;&nbsp;&nbsp;&copy; <a href="http://www.srl.inf.ethz.ch" target="_blank">Software Reliability Lab</a>, <a href="http://www.inf.ethz.ch" target="_blank">Computer Science Department</a>, <a href="http://www.ethz.ch/index_EN" target="_blank">ETH Zurich</a></p>
     <p>&nbsp;</p>
 
   </div>
+
+<div class="post border_top" id="team">
+    <h2>Team</h2>
+    <div class="four_cols clearfix">
+        <div>
+            <img class="photo" src="img/vrpic.png" title="Veselin Raychev" alt="Veselin Raychev" />
+            <h3>Veselin Raychev</h3>
+            <p>PhD Student <br />Software Reliability Lab, ETH Zurich<br />
+                <a href="http://www.srl.inf.ethz.ch/raychev.php" target="_blank">Website</a>
+            </p>
+        </div>
+
+        <div>
+            <img class="photo" src="img/pbpic.png" title="Pavol Bielik" alt="Pavol Bielik" />
+            <h3>Pavol Bielik</h3>
+            <p>PhD Student<br />
+                Software Reliability Lab, ETH Zurich<br />
+                <a href="http://www.srl.inf.ethz.ch/bielik.php" target="_blank">Website</a>
+            </p>
+        </div>
+
+        <div>
+            <img class="photo" src="img/mvpic.png" title="Martin Vechev" alt="Martin Vechev" />
+            <h3>Martin Vechev</h3>
+            <p>Assistant Professor<br />Software Reliability Lab, ETH  Zurich<br />
+                <a href="http://www.srl.inf.ethz.ch/vechev.php" target="_blank">Website</a>
+            </p>
+        </div>
+
+        <div>
+            <img class="photo" src="img/akpic.jpg" title="Andreas Krause" alt="Andreas Krause" />
+            <h3>Andreas Krause</h3>
+            <p>Associate Professor<br />Learning & Adaptive Systems Group,<br /> ETH Zurich<br />
+                <a href="http://las.ethz.ch/krausea.html" target="_blank">Website</a>
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<!--<div class="post border_top" id="contact">-->
+    <!--<h2>Contact</h2>-->
+    <!--<p style="text-align:center;">Have a question or comment? We'd love to hear feedback on your experience with Nice2Predict. You can reach us at <br>-->
+        <!--<a href="mailto:team@nice2predict.org" class="contact_email">team@nice2predict.org</a>-->
+    <!--</p>-->
+<!--</div>-->
+
+<div id="footer_wrapper" >
+    <div class="post">
+    <h3>Have a question or comment?</h3>
+    <p class="highlight" >We'd love to hear feedback on your experience with Nice2Predict. You can reach us at <br>
+    <a href="mailto:{firstname.lastname}@inf.ethz.ch" class="contact_email">{firstname.lastname}@inf.ethz.ch</a>
+    </p>
+
+        <div class="two_col1" style="margin-top: -10px;">
+            <img class="icon" src="img/logo.png" title="Nice2Predict" alt="Nice2Predict" />
+        </div>
+
+        <div class="two_col2" style="margin-top: -10px;">
+                <img class="icon clearfix" src="img/eth_logo.png" title="ETH Zurich" alt="ETH Zurich" />
+        </div>
+    </div>
+
+</div>
 
 <script src="js/jquery.nav.js"></script>
 <script src="js/nav.js"></script>

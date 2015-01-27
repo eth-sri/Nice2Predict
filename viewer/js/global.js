@@ -40,6 +40,12 @@ function viewport() {
     var height = (window.innerHeight ? window.innerHeight : $w.height());
     var full = height - $(33).toPx({});
     $(".CodeMirror").css('height',full);
+	full = height - $(9).toPx({});
+	$(".welcome").css('min-height',full);
+
+	//align shareboxes with the logo in the navigation bar
+	var width = $(".srl").width();
+	$(".sharebox_top").css('padding-left', 0.05*width);
 }
 
 $(document).ready(function() {
@@ -275,8 +281,17 @@ window.twttr = (function (d,s,id) {
 //Functionality of the buttons
 
 	document.getElementById("extract-features").addEventListener("click", function(event){
-  		var features = UglifyJS.extractFeatures(inputJsEditor.getDoc().getValue(), "", false, "ASTREL, FNAMES", false);
-  		inputEditor.getDoc().setValue(features.trim());
+		var output;
+		try {
+			 output = UglifyJS.extractFeatures(inputJsEditor.getDoc().getValue(), "", false, "ASTREL, FNAMES, FSCOPE", false);
+		} catch (ex) {
+			output = "// Error extracting features...\n"
+			//if (ex instanceof UglifyJS.Parse_Error){
+			//	output += "// Cannot parse input:";
+			//}
+			output += ex;
+		}
+  		inputEditor.getDoc().setValue(output.trim());
   		
   		$("#tabs-left a")[1].click();
   		setTimeout(function() {
@@ -337,6 +352,8 @@ window.twttr = (function (d,s,id) {
 			function(result) {
 				stopProgress();
 				$( "#intro_area_overlay" ).addClass( "hidden" );
+				$( "#produce-outputjs" ).removeClass( "hidden" );
+				$( "#map-inference" ).removeClass( "hidden" );
 				$("#tabs-right a")[0].click();
 				createGraph(result);
 			},
@@ -353,6 +370,27 @@ window.twttr = (function (d,s,id) {
 
 	});
 
-
+	document.getElementById("map-inference").addEventListener("click", function(event){
+		startProgress();
+	  var query = jQuery.parseJSON(inputEditor.getDoc().getValue());
+	  query.infer = true;
+		callServer(
+			nice2server,
+			"showgraph",
+			query,
+			function(result) {
+				stopProgress();
+				updateGraph(result);
+			},
+			function(err, status, thrown) {
+				stopProgress();
+        $( "#intro_area_overlay" ).addClass( "hidden" );
+        outputEditor.getDoc().setValue("// Error contacting the server...\n");
+        $("#tabs-right a")[1].click();
+        setTimeout(function() {
+          outputEditor.refresh();
+        },1);				
+			});
+	});
 
 

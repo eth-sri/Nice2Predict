@@ -20,11 +20,13 @@
 #include "jsoncpp/json/json.h"
 #include "jsonrpccpp/server.h"
 #include "jsonrpccpp/server/connectors/httpserver.h"
+#include "jsonrpccpp/common/exception.h"
 
 #include "graph_inference.h"
 #include "inference.h"
 
 DEFINE_string(model, "model", "Input model files");
+DEFINE_string(model_version, "", "Version of the current model");
 
 class Nice2ServerInternal : public jsonrpc::AbstractServer<Nice2ServerInternal> {
 public:
@@ -56,9 +58,26 @@ public:
     inference_.LoadModel(FLAGS_model);
   }
 
+  void verifyVersion(const Json::Value& request){
+    VLOG(3) << "Current version: " << FLAGS_model_version << ". Request version: " << request["version"];
+    if (FLAGS_model_version.empty()){
+      return;
+    }
+
+    if (!request.isMember("version") ||
+        strcmp(request["version"].asCString(), FLAGS_model_version.c_str()) != 0){
+      std::ostringstream stringStream;
+      stringStream << "The version of client '" << request["version"].asString() <<
+          "' does not match the server version '" << FLAGS_model_version << "'. " <<
+          "Please update the client to the latest version by running 'npm update -g unuglify-js'.";
+      throw jsonrpc::JsonRpcException(-31001, stringStream.str());
+    }
+  }
+
   void infer(const Json::Value& request, Json::Value& response)
   {
     VLOG(3) << request.toStyledString();
+    verifyVersion(request);
     std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
     query->FromJSON(request["query"]);
     std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
@@ -71,6 +90,7 @@ public:
   {
     // int n = request["n"].asInt();
     VLOG(3) << request.toStyledString();
+    verifyVersion(request);
     std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
     query->FromJSON(request["query"]);
     std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
@@ -86,6 +106,9 @@ public:
     query->FromJSON(request["query"]);
     std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
     assignment->FromJSON(request["assign"]);
+    if (request.isMember("infer") && request["infer"].asBool() == true) {
+      inference_.MapInference(query.get(), assignment.get());
+    }
     inference_.DisplayGraph(query.get(), assignment.get(), &response);
   }
 

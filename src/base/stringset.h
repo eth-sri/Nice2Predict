@@ -49,6 +49,9 @@ public:
 	// Returns all strings in the StringSet.
 	void getAllStrings(std::vector<int>* strings) const;
 
+	// Return the data size. Entries after this number are free for use
+	int getSize() const { return m_data.size(); }
+
 private:
 	// Returns the index of the added string.
 	int addStringL(const char* s, int slen);

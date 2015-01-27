@@ -16,7 +16,7 @@
    version="1.1"
    inkscape:version="0.48.4 r9939"
    sodipodi:docname="architecture.svg"
-   inkscape:export-filename="/home/bielikp/ETH/PLSMT/n2/viewer/img/architecture.png"
+   inkscape:export-filename="/home/bielikp/ETH/PLSMT/n2/viewer/img/architecture2.png"
    inkscape:export-xdpi="90"
    inkscape:export-ydpi="90">
   <defs
@@ -318,9 +318,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.49497475"
-     inkscape:cx="688.83712"
-     inkscape:cy="423.42422"
+     inkscape:zoom="1.4"
+     inkscape:cx="1257.6518"
+     inkscape:cy="346.14552"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -328,11 +328,11 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:window-width="1702"
-     inkscape:window-height="1120"
-     inkscape:window-x="2048"
-     inkscape:window-y="37"
-     inkscape:window-maximized="0"
+     inkscape:window-width="1920"
+     inkscape:window-height="1051"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true">
     <sodipodi:guide
@@ -366,12 +366,13 @@
      id="layer1"
      transform="translate(482.11374,-183.02138)">
     <rect
-       style="fill:#5e57a6;fill-opacity:0.85507244;fill-rule:nonzero;stroke:#ffffff;stroke-width:4.56249619;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:0;stroke-dasharray:none;stroke-dashoffset:0"
-       id="rect3148"
-       width="1727.2803"
-       height="772.66034"
-       x="-515.03961"
-       y="139.30669" />
+       style="fill:#5e57a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       id="rect3129"
+       width="2125.7141"
+       height="1068.5714"
+       x="-311.42856"
+       y="-185.07449"
+       transform="translate(-482.11374,183.02138)" />
     <text
        xml:space="preserve"
        style="font-size:40px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:condensed;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;font-family:DINPro;-inkscape-font-specification:DINPro Bold Condensed"

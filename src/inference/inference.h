@@ -72,7 +72,7 @@ public:
   virtual void SaveModel(const std::string& file_prefix) = 0;
 
   virtual Nice2Query* CreateQuery() const = 0;
-  virtual Nice2Assignment* CreateAssignment(const Nice2Query* query) const = 0;
+  virtual Nice2Assignment* CreateAssignment(Nice2Query* query) const = 0;
 
   // Updates assignment with the most likely assignment (assignment with highest score).
   // Must be called after PrepareForInference

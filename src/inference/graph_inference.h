@@ -67,7 +67,7 @@ public:
   virtual void SaveModel(const std::string& file_prefix) override;
 
   virtual Nice2Query* CreateQuery() const override;
-  virtual Nice2Assignment* CreateAssignment(const Nice2Query* query) const override;
+  virtual Nice2Assignment* CreateAssignment(Nice2Query* query) const override;
 
   virtual void MapInference(
       const Nice2Query* query,

@@ -17,7 +17,7 @@
    inkscape:export-filename="/home/bielikp/ETH/PLSMT/n2/viewer/favicon.ico.png"
    inkscape:export-xdpi="90"
    inkscape:export-ydpi="90"
-   sodipodi:docname="New document 1">
+   sodipodi:docname="favicon.svg">
   <defs
      id="defs4" />
   <sodipodi:namedview
@@ -39,7 +39,7 @@
      fit-margin-bottom="0"
      inkscape:window-width="1297"
      inkscape:window-height="767"
-     inkscape:window-x="2135"
+     inkscape:window-x="621"
      inkscape:window-y="128"
      inkscape:window-maximized="0" />
   <metadata
@@ -50,7 +50,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -78,6 +78,6 @@
          id="tspan3000"
          x="7.0060635"
          y="1045.0123"
-         style="font-size:24px;font-style:normal;font-weight:bold;letter-spacing:1px;fill:#ffffff;-inkscape-font-specification:Ando Semi-Bold">2N</tspan></text>
+         style="font-size:24px;font-style:normal;font-weight:bold;letter-spacing:1px;fill:#ffffff;-inkscape-font-specification:Ando Semi-Bold">N2</tspan></text>
   </g>
 </svg>

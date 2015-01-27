@@ -40,7 +40,16 @@ function relayoutGraph() {
 }
 
 function updateGraph(g) {
-  
+  var repr = sgraph.graph;
+  for (i in g.nodes) {
+    var node = g.nodes[i];
+    repr.nodes()[i].label = node.label;
+  }
+  for (i in g.edges) {
+    var edge = g.edges[i];
+    repr.edges()[i].label = edge.label;
+  }
+  sgraph.refresh();
 }
 
 function createGraphRepresentation(g) {
@@ -69,7 +78,7 @@ function createGraphRepresentation(g) {
         label: edge.label
       };
     repr.edges[i] = newedge;
-  }  
+  }
   
   return repr;
 }

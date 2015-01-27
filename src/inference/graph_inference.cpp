@@ -27,6 +27,8 @@
 #include "maputil.h"
 #include "simple_histogram.h"
 
+#include "label_set.h"
+
 DEFINE_int32(graph_per_node_passes, 6, "Number of per-node passes for inference");
 DEFINE_int32(graph_per_arc_passes, 2, "Number of per-arc passes for inference");
 DEFINE_int32(graph_loopy_bp_passes, 0, "Number of loopy belief propagation passes for inference");
@@ -100,7 +102,7 @@ private:
 
 class GraphQuery : public Nice2Query {
 public:
-  explicit GraphQuery(const StringSet* ss) : ss_(ss) {
+  explicit GraphQuery(const StringSet* ss, const LabelChecker* checker) : label_set_(ss, checker) {
     arcs_connecting_node_pair_.set_empty_key(IntPair(-1, -1));
     arcs_connecting_node_pair_.set_deleted_key(IntPair(-1, -1));
   }
@@ -117,7 +119,8 @@ public:
         Arc a;
         a.node_a = numberer_.ValueToNumber(arc["a"]);
         a.node_b = numberer_.ValueToNumber(arc["b"]);
-        a.type = ss_->findString(arc["f2"].asCString());
+        a.type = label_set_.ss()->findString(arc["f2"].asCString());
+        if (a.type < 0) continue;
         arcs_.push_back(a);
       }
       if (arc.isMember("cn")) {
@@ -178,7 +181,8 @@ private:
   std::vector<Arc> arcs_;
   google::dense_hash_map<IntPair, std::vector<Arc> > arcs_connecting_node_pair_;
   JsonValueNumberer numberer_;
-  const StringSet* ss_;
+
+  LabelSet label_set_;
 
   std::vector<std::vector<int> > nodes_in_scope_;
   std::vector<std::vector<int> > scopes_per_nodes_;
@@ -216,7 +220,7 @@ struct GraphInferenceStats {
 
 class GraphNodeAssignment : public Nice2Assignment {
 public:
-  GraphNodeAssignment(const GraphQuery* query, const StringSet* ss) : query_(query), ss_(ss) {
+  GraphNodeAssignment(const GraphQuery* query, LabelSet* label_set) : query_(query), label_set_(label_set) {
     assignments_.assign(query_->numberer_.size(), Assignment());
     penalties_.assign(assignments_.size(), LabelPenalty());
   }
@@ -243,11 +247,11 @@ public:
     for (const Json::Value& a : assignment) {
       Assignment aset;
       if (a.isMember("inf")) {
-        aset.label = ss_->findString(a["inf"].asCString());
+        aset.label = label_set_->AddLabelName(a["inf"].asCString());
         aset.must_infer = true;
       } else {
         CHECK(a.isMember("giv"));
-        aset.label = ss_->findString(a["giv"].asCString());
+        aset.label = label_set_->AddLabelName(a["giv"].asCString());
         aset.must_infer = false;
       }
       int number = query_->numberer_.ValueToNumberWithDefault(a.get("v", Json::Value::null), -1);
@@ -265,7 +269,7 @@ public:
 
       Json::Value obj(Json::objectValue);
       obj["v"] = query_->numberer_.NumberToValue(i);
-      const char* str_value = ss_->getString(assignments_[i].label);
+      const char* str_value = label_set_->GetLabelName(assignments_[i].label);
       if (assignments_[i].must_infer) {
         obj["inf"] = Json::Value(str_value);
       } else {
@@ -304,9 +308,13 @@ public:
   std::string DebugString() const {
     std::string result;
     for (int node = 0; node < static_cast<int>(assignments_.size()); ++node) {
-      StringAppendF(&result, "[%d:%s]%s ", node, ss_->getString(assignments_[node].label), assignments_[node].must_infer ? "" : "*");
+      StringAppendF(&result, "[%d:%s]%s ", node, label_set_->GetLabelName(assignments_[node].label), assignments_[node].must_infer ? "" : "*");
     }
     return result;
+  }
+
+  const char* GetLabelName(int label_id) const {
+    return label_set_->GetLabelName(label_id);
   }
 
   // Returns the penalty associated with a node and its label (used in Max-Margin training).
@@ -443,7 +451,7 @@ public:
       if (feature_it != features.end()) {
         sum += feature_it->second.getValue();
       }
-      VLOG(3) << " " << ss_->getString(feature.a_) << " " << ss_->getString(feature.b_) << " " << ss_->getString(feature.type_)
+      VLOG(3) << " " << label_set_->GetLabelName(feature.a_) << " " << label_set_->GetLabelName(feature.b_) << " " << label_set_->GetLabelName(feature.type_)
           << " " << ((feature_it != features.end()) ? feature_it->second.getValue() : 0.0);
     }
     for (size_t i = 0; i < assignments_.size(); ++i) {
@@ -563,7 +571,7 @@ private:
   std::vector<LabelPenalty> penalties_;
 
   const GraphQuery* query_;
-  const StringSet* ss_;
+  LabelSet* label_set_;
 
 #ifdef GRAPH_INFERENCE_STATS
   mutable GraphInferenceStats stats_;
@@ -627,9 +635,9 @@ public:
       StringAppendF(&result, "\nNode %d:\n", static_cast<int>(node));
       for (int label : labels_at_node_[node]) {
         const BPScore& score = FindWithDefault(node_label_to_score_, IntPair(node, label), empty_bp_score_);
-        StringAppendF(&result, "  Label %s  -- %f:\n", a_.ss_->getString(label), score.total_score);
+        StringAppendF(&result, "  Label %s  -- %f:\n", a_.label_set_->GetLabelName(label), score.total_score);
         for (auto it = score.incoming_node_to_message.begin(); it != score.incoming_node_to_message.end(); ++it) {
-          StringAppendF(&result, "    From %d: %s -- %f [ arc %f ]\n", it->first, a_.ss_->getString(it->second.label), it->second.score,
+          StringAppendF(&result, "    From %d: %s -- %f [ arc %f ]\n", it->first, a_.label_set_->GetLabelName(it->second.label), it->second.score,
                a_.GetNodePairScore(fweights_, it->first, node, it->second.label, label));
         }
       }
@@ -809,10 +817,11 @@ void GraphInference::SaveModel(const std::string& file_prefix) {
 }
 
 Nice2Query* GraphInference::CreateQuery() const {
-  return new GraphQuery(&strings_);
+  return new GraphQuery(&strings_, &label_checker_);
 }
-Nice2Assignment* GraphInference::CreateAssignment(const Nice2Query* query) const {
-  return new GraphNodeAssignment(static_cast<const GraphQuery*>(query), &strings_);
+Nice2Assignment* GraphInference::CreateAssignment(Nice2Query* query) const {
+  GraphQuery* q = static_cast<GraphQuery*>(query);
+  return new GraphNodeAssignment(q, &q->label_set_);
 }
 void GraphInference::PerformAssignmentOptimization(GraphNodeAssignment* a) const {
   double score = a->GetTotalScore(*this);
@@ -912,7 +921,7 @@ void GraphInference::SSVMLearn(
 
   for (auto it = affected_features.begin(); it != affected_features.end(); ++it) {
     if (it->second < -1e-9 || it->second > 1e-9) {
-      VLOG(3) << strings_.getString(it->first.a_) << " " << strings_.getString(it->first.b_) << " " << strings_.getString(it->first.type_) << " " << it->second;
+      VLOG(3) << a->GetLabelName(it->first.a_) << " " << a->GetLabelName(it->first.b_) << " " << a->GetLabelName(it->first.type_) << " " << it->second;
       auto features_it = features_.find(it->first);
       if (features_it != features_.end()) {
         features_it->second.atomicAddRegularized(it->second, 0, svm_regularizer_);
@@ -934,7 +943,7 @@ void GraphInference::DisplayGraph(
       Json::Value node;
       node["id"] = Json::Value(StringPrintf("N%d", static_cast<int>(i)));
       int label = a->assignments_[i].label;
-      node["label"] = Json::Value(label < 0 ? StringPrintf("%d", label).c_str() : strings_.getString(label));
+      node["label"] = Json::Value(label < 0 ? StringPrintf("%d", label).c_str() : a->GetLabelName(label));
       node["color"] = Json::Value(a->assignments_[i].must_infer ? "#6c9ba4" : "#96816a");
       nodes.append(node);
     }
@@ -946,8 +955,8 @@ void GraphInference::DisplayGraph(
       s.append(", ");
     }
     StringAppendF(&s, "%s - %.2f",
-            strings_.getString(arc.type),
-            a->GetNodePairScore(*this, arc.node_a, arc.node_b, a->assignments_[arc.node_a].label, a->assignments_[arc.node_b].label));
+        a->GetLabelName(arc.type),
+        a->GetNodePairScore(*this, arc.node_a, arc.node_b, a->assignments_[arc.node_a].label, a->assignments_[arc.node_b].label));
   }
 
   Json::Value& edges = (*graph)["edges"];
