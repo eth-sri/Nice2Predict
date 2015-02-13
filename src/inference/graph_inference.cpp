@@ -104,7 +104,7 @@ class GraphQuery : public Nice2Query {
 public:
   explicit GraphQuery(const StringSet* ss, const LabelChecker* checker) : label_set_(ss, checker) {
     arcs_connecting_node_pair_.set_empty_key(IntPair(-1, -1));
-    arcs_connecting_node_pair_.set_deleted_key(IntPair(-1, -1));
+    arcs_connecting_node_pair_.set_deleted_key(IntPair(-2, -2));
   }
   virtual ~GraphQuery() {
   }
