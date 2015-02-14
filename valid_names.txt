@@ -1,0 +1,37 @@
+# List rules for valid names in the given language.
+# The lines starting with + include names that are allowed and the lines starting with - denote disallowed names.
+
+# GCC4.8 regex limitations +[A-Za-z][_0-9A-Za-z]*
++.+
+-undefined
+-this
+-document
+-window
+-arguments
+-var
+-for
+-while
+-if
+-true
+-false
+-null
+-function
+-NaN
+-Array
+-Boolean
+-Double
+-Object
+-Function
+-Date
+-XMLHttpRequest
+-TypeError
+-Error
+-setTimeout
+-clearTimeout
+-setInterval
+-clearInterval
+-alert
+-0
+-1
+-\.num_const
+
