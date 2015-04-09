@@ -22,11 +22,23 @@
 #include "jsonrpccpp/server/connectors/httpserver.h"
 #include "jsonrpccpp/common/exception.h"
 
+#include "stringprintf.h"
+
 #include "graph_inference.h"
+#include "server_log.h"
 #include "inference.h"
 
 DEFINE_string(model, "model", "Input model files");
 DEFINE_string(model_version, "", "Version of the current model");
+
+DEFINE_string(logfile_prefix, "", "File where to log all requests and responses");
+
+namespace {
+void DropTrainingNewLine(std::string* s) {
+  if (s->empty()) return;
+  if ((*s)[s->size() - 1] == '\n') s->erase(s->begin() + s->size() - 1, s->end());
+}
+}
 
 class Nice2ServerInternal : public jsonrpc::AbstractServer<Nice2ServerInternal> {
 public:
@@ -56,6 +68,10 @@ public:
         &Nice2ServerInternal::showgraph);
 
     inference_.LoadModel(FLAGS_model);
+
+    if (!FLAGS_logfile_prefix.empty()) {
+      logging_.reset(new Nice2ServerLog(FLAGS_logfile_prefix));
+    }
   }
 
   void verifyVersion(const Json::Value& request){
@@ -74,6 +90,25 @@ public:
     }
   }
 
+
+  void MaybeLogQuery(const char* method, const Json::Value& request, const Json::Value& response) {
+    if (logging_.get() == NULL) {
+      return;
+    }
+
+    Json::FastWriter writer;
+    std::string rs1 = writer.write(request);
+    std::string rs2 = writer.write(response);
+    DropTrainingNewLine(&rs1);
+    DropTrainingNewLine(&rs2);
+    logging_->LogRecord(StringPrintf(
+        "\"method\":\"%s\", "
+        "\"request\":%s, "
+        "\"reply\":%s",
+        method, rs1.c_str(), rs2.c_str()));
+  }
+
+
   void infer(const Json::Value& request, Json::Value& response)
   {
     VLOG(3) << request.toStyledString();
@@ -84,6 +119,8 @@ public:
     assignment->FromJSON(request["assign"]);
     inference_.MapInference(query.get(), assignment.get());
     assignment->ToJSON(&response);
+
+    MaybeLogQuery("infer", request, response);
   }
 
   void nbest(const Json::Value& request, Json::Value& response)
@@ -97,6 +134,8 @@ public:
     assignment->FromJSON(request["assign"]);
     inference_.MapInference(query.get(), assignment.get());
     assignment->ToJSON(&response);
+
+    MaybeLogQuery("nbest", request, response);
   }
 
   void showgraph(const Json::Value& request, Json::Value& response)
@@ -110,10 +149,13 @@ public:
       inference_.MapInference(query.get(), assignment.get());
     }
     inference_.DisplayGraph(query.get(), assignment.get(), &response);
+
+    MaybeLogQuery("showgraph", request, response);
   }
 
 private:
   GraphInference inference_;
+  std::unique_ptr<Nice2ServerLog> logging_;
 };
 
 Nice2Server::Nice2Server(jsonrpc::HttpServer* server)

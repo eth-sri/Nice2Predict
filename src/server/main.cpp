@@ -25,6 +25,7 @@ DEFINE_int32(port, 5745, "JSON-RPC Server port");
 DEFINE_int32(num_threads, 8, "Number of serving threads");
 
 int main(int argc, char** argv) {
+  google::InstallFailureSignalHandler();
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 

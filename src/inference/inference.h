@@ -17,8 +17,9 @@
 #ifndef N2_INFERENCE_H__
 #define N2_INFERENCE_H__
 
-#include <string>
 #include <mutex>
+#include <string>
+#include <map>
 #include "jsoncpp/json/json.h"
 
 // Abstract classes for inference.
@@ -45,6 +46,11 @@ struct PrecisionStats {
   std::mutex lock;
 };
 
+struct SingleLabelErrorStats {
+  std::map<std::string, int> errors_and_counts;
+  std::mutex lock;
+};
+
 // Assigned results for the query (including the pre-assigned values).
 class Nice2Assignment {
 public:
@@ -61,6 +67,8 @@ public:
   virtual void ClearInferredAssignment() = 0;
   // Compare two assignments (it is assumed the two assignments are for the same Nice2Query).
   virtual void CompareAssignments(const Nice2Assignment* reference, PrecisionStats* stats) const = 0;
+  // Compare two assignments and return the label errors observed in them.
+  virtual void CompareAssignmentErrors(const Nice2Assignment* reference, SingleLabelErrorStats* error_stats) const = 0;
 };
 
 

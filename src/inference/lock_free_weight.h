@@ -30,7 +30,14 @@ struct LockFreeWeights {
     value.store(v);
   }
   void nonAtomicAdd(double value_added) {
-    value.store(value.load() + 1);
+    value.store(value.load() + value_added);
+  }
+  void atomicAdd(double value_added) {
+    double expected = value.load();
+    double desired;
+    do {
+      desired = expected + value_added;
+    } while (!value.compare_exchange_weak(expected, desired));
   }
   void atomicAddRegularized(double value_added, double min, double max) {
     double expected = value.load();

@@ -104,7 +104,7 @@ class GraphQuery : public Nice2Query {
 public:
   explicit GraphQuery(const StringSet* ss, const LabelChecker* checker) : label_set_(ss, checker) {
     arcs_connecting_node_pair_.set_empty_key(IntPair(-1, -1));
-    arcs_connecting_node_pair_.set_deleted_key(IntPair(-2, -2));
+    arcs_connecting_node_pair_.set_deleted_key(IntPair(-1, -1));
   }
   virtual ~GraphQuery() {
   }
@@ -286,6 +286,7 @@ public:
       }
     }
   }
+
   virtual void CompareAssignments(const Nice2Assignment* reference, PrecisionStats* stats) const override {
     const GraphNodeAssignment* ref = static_cast<const GraphNodeAssignment*>(reference);
     int correct_labels = 0;
@@ -304,6 +305,20 @@ public:
     stats->incorrect_labels += incorrect_labels;
   }
 
+  virtual void CompareAssignmentErrors(const Nice2Assignment* reference, SingleLabelErrorStats* error_stats) const override {
+    const GraphNodeAssignment* ref = static_cast<const GraphNodeAssignment*>(reference);
+    std::lock_guard<std::mutex> guard(error_stats->lock);
+    for (size_t i = 0; i < assignments_.size(); ++i) {
+      if (assignments_[i].must_infer) {
+        if (assignments_[i].label != ref->assignments_[i].label) {
+          error_stats->errors_and_counts[StringPrintf(
+              "%s -> %s",
+              ref->assignments_[i].label == -1 ? "[none]" : label_set_->GetLabelName(ref->assignments_[i].label),
+              assignments_[i].label == -1 ? "[keep-original]" : label_set_->GetLabelName(assignments_[i].label))]++;
+        }
+      }
+    }
+  }
 
   std::string DebugString() const {
     std::string result;
