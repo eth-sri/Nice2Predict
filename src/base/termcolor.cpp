@@ -14,29 +14,11 @@
    limitations under the License.
  */
 
-#ifndef BASE_H_
-#define BASE_H_
+#include "termcolor.h"
 
-#include <stddef.h>
-
-typedef long long int64;
-typedef unsigned long long uint64;
-
-int64 GetCurrentTimeMicros();
-
-inline unsigned FingerprintCat(unsigned a, unsigned b) {
-  return a * 6037 + ((b * 17) ^ (b >> 16));
+namespace HighlightColors {
+  const std::string RED      = "\033[31m";
+  const std::string GREEN    = "\033[32m";
+  const std::string BLUE     = "\033[34m";
+  const std::string DEFAULT  = "\033[0m";
 }
-
-inline size_t FingerprintMem(const void* memory, unsigned size) {
-  size /= sizeof(uint64);
-  const uint64* mem = static_cast<const uint64*>(memory);
-  size_t r = 0;
-  for (unsigned i = 0; i < size; ++i) {
-    uint64 tmp = mem[i];
-    r = r * 6037 + ((tmp * 19) ^ (tmp >> 48));
-  }
-  return r;
-}
-
-#endif /* BASE_H_ */

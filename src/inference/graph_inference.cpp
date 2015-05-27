@@ -25,6 +25,7 @@
 
 #include "base.h"
 #include "maputil.h"
+#include "nbest.h"
 #include "simple_histogram.h"
 
 #include "label_set.h"
@@ -1045,4 +1046,86 @@ void GraphInference::PrepareForInference() {
   }
   LOG(INFO) << "GraphInference prepared for MAP inference.";
 }
+
+void GraphInference::PrintDebugInfo() {
+  NBest<int, double> best_connected_labels;
+  std::unordered_map<int, NBest<int, double> > best_connections_per_label;
+  std::unordered_map<IntPair, NBest<int, double> > best_connections_per_label_type;
+  for (auto it = features_.begin(); it != features_.end(); ++it) {
+    double score = it->second.getValue();
+    best_connected_labels.AddScoreToItem(it->first.a_, score);
+    best_connected_labels.AddScoreToItem(it->first.b_, score);
+    best_connections_per_label[it->first.a_].AddScoreToItem(it->first.type_, score);
+    best_connections_per_label[it->first.b_].AddScoreToItem(it->first.type_, score);
+    best_connections_per_label_type[IntPair(it->first.a_, it->first.type_)].AddScoreToItem(it->first.b_, score);
+    best_connections_per_label_type[IntPair(it->first.b_, it->first.type_)].AddScoreToItem(it->first.a_, score);
+  }
+
+  printf("Best connected labels\n");
+  for (auto v : best_connected_labels.produce_nbest(96)) {
+    printf("%.3f : %12s :\n", v.first, v.second < 0 ? "-1" : strings_.getString(v.second));
+    for (auto vv : best_connections_per_label[v.second].produce_nbest(3)) {
+      printf("         (%5.3f) %40s : ", vv.first, vv.second < 0 ? "-1" : strings_.getString(vv.second));
+      for (auto vvv : best_connections_per_label_type[IntPair(v.second, vv.second)].produce_nbest(3)) {
+        printf(" %20s (%.3f) ", vvv.second < 0 ? "-1" : strings_.getString(vvv.second), vvv.first);
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+}
+
+void GraphInference::PrintConfusionStatistics(
+    const Nice2Query* query,
+    const Nice2Assignment* assignment,
+    NodeConfusionStats* stats) {
+  const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
+  const GraphQuery* q = a->query_;
+
+  std::map<std::vector<GraphQuery::Arc>, std::vector<int> > nodes_per_confusion;
+
+  for (int node_id = 0; node_id < static_cast<int>(q->arcs_adjacent_to_node_.size()); ++node_id) {
+    if (!a->assignments_[node_id].must_infer) continue;
+    std::vector<GraphQuery::Arc> arcs(q->arcs_adjacent_to_node_[node_id]);
+    for (size_t i = 0; i < arcs.size(); ++i) {
+      if (arcs[i].node_a == node_id) arcs[i].node_a = -1;
+      if (arcs[i].node_b == node_id) arcs[i].node_b = -1;
+    }
+    std::sort(arcs.begin(), arcs.end());
+    nodes_per_confusion[arcs].push_back(node_id);
+  }
+
+  for (auto it = nodes_per_confusion.begin(); it != nodes_per_confusion.end(); ++it) {
+    if (it->second.size() <= 1) {
+      CHECK_EQ(it->second.size(), 1);
+      ++stats->num_non_confusable_nodes;
+      continue;
+    }
+
+    stats->num_confusable_nodes += it->second.size();
+    stats->num_expected_confusions += it->second.size() - 1;
+
+    const auto& arcs = it->first;
+    const auto& nodes = it->second;
+
+    std::string labels;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+      int label = a->assignments_[nodes[i]].label;
+      if (!labels.empty()) labels.append(" ");
+      labels.append(a->GetLabelName(label));
+    }
+    std::string predicted_by;
+    for (size_t i = 0; i < arcs.size(); ++i) {
+      if (!predicted_by.empty()) predicted_by.append(", ");
+      const char* label_a = (arcs[i].node_a == -1) ? ("<X>") : a->GetLabelName(a->assignments_[arcs[i].node_a].label);
+      const char* label_b = (arcs[i].node_b == -1) ? ("<X>") : a->GetLabelName(a->assignments_[arcs[i].node_b].label);
+      const char* arc = a->label_set_->ss()->getString(arcs[i].type);
+      StringAppendF(&predicted_by, "%s[%s %s]", arc, label_a, label_b);
+    }
+    if (predicted_by.empty()) predicted_by = "<no adjacent edges>";
+
+    LOG(INFO) << "Confusion:\nLabels:      " << labels << "\nPredicted by: " << predicted_by << "\n\n";
+  }
+}
+
 

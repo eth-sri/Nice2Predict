@@ -17,6 +17,7 @@
 #include "stringset.h"
 
 #include <string.h>
+#include <string>
 
 StringSet::StringSet() : m_hashTableLoad(0) {
 }

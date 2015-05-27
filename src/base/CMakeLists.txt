@@ -5,11 +5,13 @@ SET(BASE_H
     base.h
     stringprintf.h
     stringset.h
-    strutil.h)
+    strutil.h
+    termcolor.h)
 SET(BASE_CPP
     base.cpp
     stringprintf.cpp
     stringset.cpp
-    strutil.cpp)
+    strutil.cpp
+    termcolor.cpp)
 
 ADD_LIBRARY(base ${BASE_H} ${BASE_CPP})

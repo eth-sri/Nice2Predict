@@ -45,6 +45,8 @@ DEFINE_double(svm_margin, 0.1, "SVM Margin = Penalty for keeping equal labels as
 DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is performed with the specified number of folds");
 DEFINE_bool(evaluate, false, "Whether to perform evaluation instead of training. In this case, the --input parameter contains JSON values with evaluation data.");
 DEFINE_string(output_errors, "", "If set, will output the label errors done by the system.");
+DEFINE_bool(debug_stats, false, "If specifies, only outputs debug stats of a trained model.");
+DEFINE_bool(print_confusion, false, "Print confusion statistics.");
 
 DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multiclass classifier.");
 
@@ -270,6 +272,24 @@ void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
   total_stats->AddStats(stats);
 }
 
+void PrintConfusion() {
+  std::unique_ptr<RecordInput> input(new FileRecordInput(FLAGS_input));
+  NodeConfusionStats confusion_stats;
+  ForeachInput(input.get(), [&confusion_stats](const Json::Value& query, const Json::Value& assign) {
+    GraphInference inference;
+    inference.AddQueryToModel(query, assign);
+    std::unique_ptr<Nice2Query> q(inference.CreateQuery());
+    q->FromJSON(query);
+    std::unique_ptr<Nice2Assignment> a(inference.CreateAssignment(q.get()));
+    a->FromJSON(assign);
+
+    inference.PrintConfusionStatistics(q.get(), a.get(), &confusion_stats);
+    LOG(INFO) << "Confusion statistics. non-confusable nodes:" << confusion_stats.num_non_confusable_nodes
+        << ", confusable nodes:" << confusion_stats.num_confusable_nodes
+        << ". Num expected confusion errors:" << confusion_stats.num_expected_confusions;
+  });
+}
+
 
 int main(int argc, char** argv) {
   google::InstallFailureSignalHandler();
@@ -286,7 +306,7 @@ int main(int argc, char** argv) {
               fold_id, FLAGS_cross_validation_folds, true)));
       std::unique_ptr<RecordInput> validation_data(
           new ShuffledCacheInput(new CrossValidationInput(new FileRecordInput(FLAGS_input),
-              fold_id, FLAGS_cross_validation_folds, true)));
+              fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
       InitTrain(training_data.get(), &inference);
       Train(training_data.get(), &inference);
@@ -309,6 +329,12 @@ int main(int argc, char** argv) {
     Evaluate(input.get(), &inference, &total_stats, error_stats.get());
     OutputLabelErrorStats(error_stats.get());
     // No need to print total_stats. Evaluate() already prints info.
+  } else if (FLAGS_debug_stats) {
+    GraphInference inference;
+    inference.LoadModel(FLAGS_out_model);
+    inference.PrintDebugInfo();
+  } else if (FLAGS_print_confusion) {
+    PrintConfusion();
   } else {
     // Structured training.
     GraphInference inference;

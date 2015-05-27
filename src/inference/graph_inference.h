@@ -27,7 +27,16 @@
 #include "maputil.h"
 #include "label_checker.h"
 
-#include "emmintrin.h"
+
+struct NodeConfusionStats {
+  NodeConfusionStats() : num_non_confusable_nodes(0), num_confusable_nodes(0), num_expected_confusions(0) { }
+
+  int num_non_confusable_nodes;
+  int num_confusable_nodes;
+  int num_expected_confusions;
+};
+
+
 
 class GraphFeature {
 public:
@@ -92,6 +101,13 @@ public:
       const Nice2Query* query,
       const Nice2Assignment* assignment,
       Json::Value* graph) const override;
+
+  void PrintDebugInfo();
+
+  void PrintConfusionStatistics(
+      const Nice2Query* query,
+      const Nice2Assignment* assignment,
+      NodeConfusionStats* stats);
 
 private:
   friend class GraphNodeAssignment;
