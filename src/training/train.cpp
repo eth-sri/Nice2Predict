@@ -33,9 +33,9 @@
 
 DEFINE_string(input, "testdata", "Input file with JSON objects regarding training data");
 DEFINE_string(out_model, "model", "File prefix for output models");
-DEFINE_bool(hogwild, true, "Whether to use Hogwild parallel training");
-DEFINE_int32(num_threads, 8, "Number of threads to use");
-DEFINE_int32(num_training_passes, 24, "Number of passes in training");
+DEFINE_bool(hogwild, true, "Whether to use Hogwild parallel training.");
+DEFINE_int32(num_threads, 8, "Number of threads to use.");
+DEFINE_int32(num_training_passes, 24, "Number of passes in training.");
 
 DEFINE_double(start_learning_rate, 0.1, "Initial learning rate");
 DEFINE_double(stop_learning_rate, 0.0001, "Stop learning if learning rate falls below the value");
@@ -43,10 +43,7 @@ DEFINE_double(regularization_const, 2.0, "Regularization constant. The higher, t
 DEFINE_double(svm_margin, 0.1, "SVM Margin = Penalty for keeping equal labels as in the training data during training.");
 
 DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is performed with the specified number of folds");
-DEFINE_bool(evaluate, false, "Whether to perform evaluation instead of training. In this case, the --input parameter contains JSON values with evaluation data.");
-DEFINE_string(output_errors, "", "If set, will output the label errors done by the system.");
-DEFINE_bool(debug_stats, false, "If specifies, only outputs debug stats of a trained model.");
-DEFINE_bool(print_confusion, false, "Print confusion statistics.");
+DEFINE_bool(print_confusion, false, "Print confusion statistics instead of training.");
 
 DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multiclass classifier.");
 
@@ -199,78 +196,7 @@ void Train(RecordInput* input, GraphInference* inference) {
   }
 }
 
-SingleLabelErrorStats* CreateLabelErrorStats() {
-  if (FLAGS_output_errors.empty()) return nullptr;
-  if (FLAGS_output_errors == "-")
-    LOG(INFO) << "Will perform label error evaluation that will LOG the top errors.";
-  else
-    LOG(INFO) << "Will perform evaluation that will output to " << FLAGS_output_errors;
-  return new SingleLabelErrorStats();
-}
 
-void PrintLabelErrorStatsSummary(const SingleLabelErrorStats* stats) {
-  if (stats == nullptr) return;
-  LOG(INFO) << "Counting classification errors...";
-  std::vector<std::pair<int, std::string> > best_stats;
-  for (auto it = stats->errors_and_counts.begin(); it != stats->errors_and_counts.end(); ++it) {
-    best_stats.push_back(std::pair<int, std::string>(it->second, it->first));
-  }
-  std::sort(best_stats.begin(), best_stats.end(), std::greater<std::pair<int, std::string> >());
-
-  std::string summary = "Top classification errors done by label (expected -> predicted):";
-  for (size_t i = 0; i < 32 && i < best_stats.size(); ++i) {
-    StringAppendF(&summary, "\n%8d : %s", best_stats[i].first, best_stats[i].second.c_str());
-  }
-  LOG(INFO) << summary;
-}
-
-void OutputLabelErrorStats(const SingleLabelErrorStats* stats) {
-  if (stats == nullptr) return;
-  if (FLAGS_output_errors == "-") return;
-  LOG(INFO) << "Outputting error stats to " << FLAGS_output_errors << "...";
-
-  std::vector<std::pair<int, std::string> > best_stats;
-  for (auto it = stats->errors_and_counts.begin(); it != stats->errors_and_counts.end(); ++it) {
-    best_stats.push_back(std::pair<int, std::string>(it->second, it->first));
-  }
-  std::sort(best_stats.begin(), best_stats.end(), std::greater<std::pair<int, std::string> >());
-  FILE* f = fopen(FLAGS_output_errors.c_str(), "wt");
-  for (size_t i = 0; i < best_stats.size(); ++i) {
-    fprintf(f, "%8d : %s\n", best_stats[i].first, best_stats[i].second.c_str());
-  }
-  fclose(f);
-  LOG(INFO) << "Error stats written.";
-}
-
-void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
-    PrecisionStats* total_stats, SingleLabelErrorStats* error_stats) {
-  int64 start_time = GetCurrentTimeMicros();
-  PrecisionStats stats;
-  ParallelForeachInput(evaluation_data, [&inference,&stats,error_stats](const Json::Value& query, const Json::Value& assign) {
-    std::unique_ptr<Nice2Query> q(inference->CreateQuery());
-    q->FromJSON(query);
-    std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-    a->FromJSON(assign);
-    std::unique_ptr<Nice2Assignment> refa(inference->CreateAssignment(q.get()));
-    refa->FromJSON(assign);
-
-    a->ClearInferredAssignment();
-    inference->MapInference(q.get(), a.get());
-    a->CompareAssignments(refa.get(), &stats);
-    if (error_stats != nullptr)
-      a->CompareAssignmentErrors(refa.get(), error_stats);
-  });
-  int64 end_time = GetCurrentTimeMicros();
-  LOG(INFO) << "Evaluation pass took " << (end_time - start_time) / 1000 << "ms.";
-
-
-  LOG(INFO) << "Correct " << stats.correct_labels << " vs " << stats.incorrect_labels << " incorrect labels";
-  double error_rate = stats.incorrect_labels / (static_cast<double>(stats.incorrect_labels + stats.correct_labels));
-  LOG(INFO) << "Error rate of " << std::fixed << error_rate;
-  PrintLabelErrorStatsSummary(error_stats);
-
-  total_stats->AddStats(stats);
-}
 
 void PrintConfusion() {
   std::unique_ptr<RecordInput> input(new FileRecordInput(FLAGS_input));
@@ -290,6 +216,33 @@ void PrintConfusion() {
   });
 }
 
+void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
+    PrecisionStats* total_stats) {
+  int64 start_time = GetCurrentTimeMicros();
+  PrecisionStats stats;
+  ParallelForeachInput(evaluation_data, [&inference,&stats](const Json::Value& query, const Json::Value& assign) {
+    std::unique_ptr<Nice2Query> q(inference->CreateQuery());
+    q->FromJSON(query);
+    std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
+    a->FromJSON(assign);
+    std::unique_ptr<Nice2Assignment> refa(inference->CreateAssignment(q.get()));
+    refa->FromJSON(assign);
+
+    a->ClearInferredAssignment();
+    inference->MapInference(q.get(), a.get());
+    a->CompareAssignments(refa.get(), &stats);
+  });
+  int64 end_time = GetCurrentTimeMicros();
+  LOG(INFO) << "Evaluation pass took " << (end_time - start_time) / 1000 << "ms.";
+
+
+  LOG(INFO) << "Correct " << stats.correct_labels << " vs " << stats.incorrect_labels << " incorrect labels";
+  double error_rate = stats.incorrect_labels / (static_cast<double>(stats.incorrect_labels + stats.correct_labels));
+  LOG(INFO) << "Error rate of " << std::fixed << error_rate;
+
+  total_stats->AddStats(stats);
+}
+
 
 int main(int argc, char** argv) {
   google::InstallFailureSignalHandler();
@@ -298,7 +251,6 @@ int main(int argc, char** argv) {
 
   if (FLAGS_cross_validation_folds > 1) {
     PrecisionStats total_stats;
-    std::unique_ptr<SingleLabelErrorStats> error_stats(CreateLabelErrorStats());
     for (int fold_id = 0; fold_id < FLAGS_cross_validation_folds; ++fold_id) {
       GraphInference inference;
       std::unique_ptr<RecordInput> training_data(
@@ -311,7 +263,7 @@ int main(int argc, char** argv) {
       InitTrain(training_data.get(), &inference);
       Train(training_data.get(), &inference);
       LOG(INFO) << "Evaluating fold " << fold_id;
-      Evaluate(validation_data.get(), &inference, &total_stats, error_stats.get());
+      Evaluate(validation_data.get(), &inference, &total_stats);
     }
     // Output results of cross-validation (no model is saved in this mode).
     LOG(INFO) << "========================================";
@@ -319,23 +271,10 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Correct " << total_stats.correct_labels << " vs " << total_stats.incorrect_labels << " incorrect labels for the whole dataset";
     double error_rate = total_stats.incorrect_labels / (static_cast<double>(total_stats.incorrect_labels + total_stats.correct_labels));
     LOG(INFO) << "Error rate of " << std::fixed << error_rate;
-    OutputLabelErrorStats(error_stats.get());
-  } else if (FLAGS_evaluate) {
-    std::unique_ptr<SingleLabelErrorStats> error_stats(CreateLabelErrorStats());
-    GraphInference inference;
-    std::unique_ptr<RecordInput> input(new FileRecordInput(FLAGS_input));
-    inference.LoadModel(FLAGS_out_model);
-    PrecisionStats total_stats;
-    Evaluate(input.get(), &inference, &total_stats, error_stats.get());
-    OutputLabelErrorStats(error_stats.get());
-    // No need to print total_stats. Evaluate() already prints info.
-  } else if (FLAGS_debug_stats) {
-    GraphInference inference;
-    inference.LoadModel(FLAGS_out_model);
-    inference.PrintDebugInfo();
   } else if (FLAGS_print_confusion) {
     PrintConfusion();
   } else {
+    LOG(INFO) << "Running structured training...";
     // Structured training.
     GraphInference inference;
     std::unique_ptr<RecordInput> input(new ShuffledCacheInput(new FileRecordInput(FLAGS_input)));

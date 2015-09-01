@@ -5,12 +5,14 @@ SET(BASE_H
     base.h
     stringprintf.h
     stringset.h
+    fileutil.h
     strutil.h
     termcolor.h)
 SET(BASE_CPP
     base.cpp
     stringprintf.cpp
     stringset.cpp
+    fileutil.cpp
     strutil.cpp
     termcolor.cpp)
 

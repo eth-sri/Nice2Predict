@@ -14,16 +14,20 @@
    limitations under the License.
  */
 
-#ifndef BASE_FILEUTIL_H_
-#define BASE_FILEUTIL_H_
+#include "fileutil.h"
 
-#include <stdio.h>
-#include <string>
-
-#include "glog/logging.h"
-
-void ReadFileToStringOrDie(const char* filename, std::string* r);
-
-
-
-#endif /* BASE_FILEUTIL_H_ */
+void ReadFileToStringOrDie(const char* filename, std::string* r) {
+  r->clear();
+  FILE* f = fopen(filename, "rt");
+  CHECK(f != NULL) << "Could not open " << filename << " for reading.";
+  char buf[4096];
+  while (!feof(f)) {
+    if (fgets(buf, 4096, f) == buf) {
+      r->append(buf);
+    } else {
+      if (!feof(f))
+        LOG(FATAL) << "Read error from " << filename;
+    }
+  }
+  fclose(f);
+}

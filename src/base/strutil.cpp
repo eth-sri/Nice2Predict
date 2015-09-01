@@ -68,6 +68,31 @@ std::string JoinStrings(const std::vector<std::string>& strs, const std::string&
 	return r;
 }
 
+// Keep the delimiter as first character of second string
+char SplitStringFirstUsing(const::std::string& s, const std::set<char> delims, std::vector<std::string>* out) {
+    std::vector<std::pair<int, int> > pieces;
+    char matched_char = 0;
+    int start = 0, len = 0;
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (delims.find(s[i]) != delims.end()) {
+            pieces.push_back(std::pair<int, int>(start, len));
+            matched_char = s[i];
+            start = i + 1;
+            len = s.size() - i - 1;
+            break;
+        } else {
+            ++len;
+        }
+    }
+    pieces.push_back(std::pair<int, int>(start, len));
+    out->assign(pieces.size(), std::string());
+    for (size_t i = 0; i < pieces.size(); ++i) {
+        (*out)[i].assign(s.c_str() + pieces[i].first, pieces[i].second);
+    }
+    return matched_char;
+}
+
+
 void SplitStringUsing(const::std::string& s, char delim, std::vector<std::string>* out) {
 	std::vector<std::pair<int, int> > pieces;
 	int start = 0, len = 0;

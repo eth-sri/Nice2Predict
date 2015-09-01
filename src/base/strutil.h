@@ -19,7 +19,7 @@
 
 #include <string>
 #include <vector>
-
+#include <set>
 
 bool IsCharWhiteSpace(char c);
 
@@ -31,6 +31,7 @@ std::string TrimLeadingAndTrailingSpaces(const std::string& s);
 void JoinStrings(const std::vector<std::string>& strs, const std::string& separator, std::string* outstr);
 std::string JoinStrings(const std::vector<std::string>& strs, const std::string& separator);
 
+char SplitStringFirstUsing(const::std::string& s, const std::set<char> delims, std::vector<std::string>* out);
 void SplitStringUsing(const::std::string& s, char delim, std::vector<std::string>* out);
 
 // Parses an integer. Returns the provided def value if the conversion fails.

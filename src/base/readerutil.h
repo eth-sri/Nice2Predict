@@ -26,6 +26,8 @@
 #include <string>
 #include <algorithm>
 
+#include "fileutil.h"
+
 // Readers
 
 class InputRecordReader {
@@ -65,6 +67,43 @@ private:
   inline bool exists (const std::string& name) {
     return ( access( name.c_str(), F_OK ) != -1 );
   }
+};
+
+class FileListRecordReader : public InputRecordReader {
+public:
+  explicit FileListRecordReader(const std::vector<std::string>& filelist) : filelist_(filelist), file_index_(0) {
+  }
+  virtual ~FileListRecordReader() override {
+  }
+
+  virtual void Read(std::string* s) override {
+    s->clear();
+
+    std::string filename;
+    {
+      std::lock_guard<std::mutex> lock(file_index_mutex_);
+      if (file_index_ >= filelist_.size()) return;
+      filename = filelist_[file_index_];
+      file_index_++;
+    }
+
+    CHECK(exists(filename)) << "File '" << filename << "' does not exist!";
+    ReadFileToStringOrDie(filename.c_str(), s);
+  }
+
+  virtual bool ReachedEnd() override {
+    std::lock_guard<std::mutex> lock(file_index_mutex_);
+    return file_index_ >= filelist_.size();
+  }
+
+private:
+  inline bool exists (const std::string& name) {
+    return ( access( name.c_str(), F_OK ) != -1 );
+  }
+
+  const std::vector<std::string>& filelist_;
+  size_t file_index_;
+  std::mutex file_index_mutex_;
 };
 
 class CachingInputRecordReader : public InputRecordReader {
@@ -132,6 +171,7 @@ public:
   virtual InputRecordReader* CreateReader() = 0;
 };
 
+// Input where each record is a line in a file.
 class FileRecordInput : public RecordInput {
 public:
   explicit FileRecordInput(const std::string& filename) : filename_(filename) {
@@ -145,6 +185,22 @@ public:
 
 private:
   std::string filename_;
+};
+
+// Input where each records is the contents of a file.
+class FileListRecordInput : public RecordInput {
+public:
+  explicit FileListRecordInput(std::vector<std::string>&& files) : files_(files) {
+  }
+  virtual ~FileListRecordInput() override {
+  }
+
+  virtual InputRecordReader* CreateReader() override {
+    return new FileListRecordReader(files_);
+  }
+
+private:
+  std::vector<std::string> files_;
 };
 
 /**

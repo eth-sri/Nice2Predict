@@ -27,11 +27,14 @@
 #include "maputil.h"
 #include "nbest.h"
 #include "simple_histogram.h"
+#include "updatable_priority_queue.h"
 
 #include "label_set.h"
 
-DEFINE_int32(graph_per_node_passes, 6, "Number of per-node passes for inference");
-DEFINE_int32(graph_per_arc_passes, 2, "Number of per-arc passes for inference");
+DEFINE_bool(initial_greedy_assignment_pass, true, "Whether to run an initial greedy assignment pass.");
+DEFINE_bool(duplicate_name_resolution, true, "Whether to attempt a duplicate name resultion on conflicts.");
+DEFINE_int32(graph_per_node_passes, 8, "Number of per-node passes for inference");
+DEFINE_int32(graph_per_arc_passes, 5, "Number of per-arc passes for inference");
 DEFINE_int32(graph_loopy_bp_passes, 0, "Number of loopy belief propagation passes for inference");
 DEFINE_int32(graph_loopy_bp_steps_per_pass, 3, "Number of loopy belief propagation steps in each inference pass");
 DEFINE_int32(skip_per_arc_optimization_for_nodes_above_degree, 32,
@@ -40,8 +43,13 @@ DEFINE_int32(skip_per_arc_optimization_for_nodes_above_degree, 32,
 
 DEFINE_string(valid_labels, "valid_names.txt", "A file describing valid names");
 
-static const size_t kPerArcBeamSize = 64;
-static const size_t kPerNodeBeamSize = 64;
+static const size_t kInitialAssignmentBeamSize = 4;
+
+static const size_t kStartPerArcBeamSize = 4;
+static const size_t kMaxPerArcBeamSize = 64;
+
+static const size_t kStartPerNodeBeamSize = 4;
+static const size_t kMaxPerNodeBeamSize = 64;
 static const size_t kLoopyBPBeamSize = 32;
 
 namespace std {
@@ -355,6 +363,26 @@ public:
     return sum;
   }
 
+  double GetNodeScoreOnAssignedNodes(
+      const GraphInference& fweights, int node,
+      const std::vector<bool>& assigned) const {
+    double sum = -GetNodePenalty(node);
+    const GraphInference::FeaturesMap& features = fweights.features_;
+    for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+      if (arc.node_a != node && !assigned[arc.node_a]) continue;
+      if (arc.node_b != node && !assigned[arc.node_b]) continue;
+      GraphFeature feature(
+          assignments_[arc.node_a].label,
+          assignments_[arc.node_b].label,
+          arc.type);
+      auto feature_it = features.find(feature);
+      if (feature_it != features.end()) {
+        sum += feature_it->second.getValue();
+      }
+    }
+    return sum;
+  }
+
   bool HasDuplicationConflictsAtNode(int node) const {
     int node_label = assignments_[node].label;
     const std::vector<int>& scopes = query_->scopes_per_nodes_[node];
@@ -366,6 +394,26 @@ public:
       }
     }
     return false;
+  }
+
+  // Returns the node with a duplication conflict to the current node. Returns -1 if there is no such node or there are multiple such nodes.
+  int GetNodeWithDuplicationConflict(int node) const {
+    int conflict_node = -1;
+    int node_label = assignments_[node].label;
+    const std::vector<int>& scopes = query_->scopes_per_nodes_[node];
+    for (int scope : scopes) {
+      const std::vector<int>& nodes_per_scope = query_->nodes_in_scope_[scope];
+      for (int other_node : nodes_per_scope) {
+        if (other_node != node && assignments_[other_node].label == node_label) {
+          if (conflict_node == -1) {
+            conflict_node = other_node;  // We have found a conflict node.
+          } else {
+            if (conflict_node != other_node) return -1;  // There are multiple conflict nodes.
+          }
+        }
+      }
+    }
+    return conflict_node;
   }
 
   // Gets the score contributed by all arcs adjacent to a node not connecting to a given node.
@@ -489,13 +537,64 @@ public:
     }
   }
 
-  void LocalPerNodeOptimizationPass(const GraphInference& fweights) {
+  void InitialGreedyAssignmentPass(const GraphInference& fweights) {
+    std::vector<bool> assigned(assignments_.size(), false);
+    for (size_t node = 0; node < assignments_.size(); ++node) {
+      assigned[node] = !assignments_[node].must_infer;
+    }
+    UpdatablePriorityQueue<int, int> p_queue;
+    for (size_t node = 0; node < assignments_.size(); ++node) {
+      if (assignments_[node].must_infer) {
+        int score = 0;
+        for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+          if (assigned[arc.node_a] || assigned[arc.node_b]) ++score;
+        }
+        p_queue.SetValue(node, -score);
+      }
+    }
+
+    std::vector<int> candidates;
+    while (!p_queue.IsEmpty()) {
+      int node = p_queue.GetKeyWithMinValue();
+      p_queue.PermanentlyRemoveKeyFromQueue(node);
+      for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+        if (arc.node_a == node) {
+          p_queue.SetValue(arc.node_b, p_queue.GetValue(arc.node_b) - 1);
+        } else if (arc.node_b == node) {
+          p_queue.SetValue(arc.node_a, p_queue.GetValue(arc.node_a) - 1);
+        }
+      }
+
+      GraphNodeAssignment::Assignment& nodea = assignments_[node];
+      if (!nodea.must_infer) continue;
+      candidates.clear();
+      GetLabelCandidates(fweights, node, &candidates, kInitialAssignmentBeamSize);
+      if (candidates.empty()) continue;
+      double best_score = GetNodeScoreOnAssignedNodes(fweights, node, assigned);
+      int best_label = nodea.label;
+      for (size_t i = 0; i < candidates.size(); ++i) {
+        nodea.label = candidates[i];
+        if (!fweights.label_checker_.IsLabelValid(assignments_[node].label)) continue;
+        if (HasDuplicationConflictsAtNode(node)) continue;
+        double score = GetNodeScoreOnAssignedNodes(fweights, node, assigned);
+        if (score > best_score) {
+          best_label = nodea.label;
+          best_score = score;
+        }
+      }
+      nodea.label = best_label;
+      assigned[node] = true;
+    }
+
+  }
+
+  void LocalPerNodeOptimizationPass(const GraphInference& fweights, size_t beam_size) {
     std::vector<int> candidates;
     for (size_t node = 0; node < assignments_.size(); ++node) {
       GraphNodeAssignment::Assignment& nodea = assignments_[node];
       if (!nodea.must_infer) continue;
       candidates.clear();
-      GetLabelCandidates(fweights, node, &candidates, kPerNodeBeamSize);
+      GetLabelCandidates(fweights, node, &candidates, beam_size);
       if (candidates.empty()) continue;
       double best_score = GetNodeScore(fweights, node);
       int best_label = nodea.label;
@@ -522,7 +621,52 @@ public:
     }
   }
 
-  void LocalPerArcOptimizationPass(const GraphInference& fweights) {
+  void LocalPerNodeOptimizationPassWithDuplicateNameResolution(const GraphInference& fweights, size_t beam_size) {
+    std::vector<int> candidates;
+    for (size_t node = 0; node < assignments_.size(); ++node) {
+      GraphNodeAssignment::Assignment& nodea = assignments_[node];
+      if (!nodea.must_infer) continue;
+      candidates.clear();
+      GetLabelCandidates(fweights, node, &candidates, beam_size);
+      if (candidates.empty()) continue;
+      double best_score = GetNodeScore(fweights, node);
+      int initial_label = nodea.label;
+      int best_label = initial_label;
+      int best_node2 = -1;
+      for (size_t i = 0; i < candidates.size(); ++i) {
+        nodea.label = candidates[i];
+        if (!fweights.label_checker_.IsLabelValid(assignments_[node].label)) continue;
+        if (HasDuplicationConflictsAtNode(node)) {
+          int node2 = GetNodeWithDuplicationConflict(node);
+          if (node2 == -1 || assignments_[node2].must_infer == false) continue;
+          assignments_[node2].label = initial_label;  // Set label to node2.
+          double score = GetNodeScore(fweights, node) + GetNodeScore(fweights, node2);
+          bool correct = !HasDuplicationConflictsAtNode(node2) && !HasDuplicationConflictsAtNode(node);
+          assignments_[node2].label = candidates[i];  // Revert label of node2.
+          if (correct) {
+            score -= GetNodeScore(fweights, node2);  // The score on node2 is essentially the gain of the score on node2.
+            if (score > best_score) {
+              best_label = nodea.label;
+              best_score = score;
+              best_node2 = node2;
+            }
+          }
+        } else {
+          double score = GetNodeScore(fweights, node);
+          if (score > best_score) {
+            best_label = nodea.label;
+            best_score = score;
+            best_node2 = -1;
+          }
+        }
+      }
+      nodea.label = best_label;
+      if (best_node2 != -1)
+        assignments_[best_node2].label = initial_label;
+    }
+  }
+
+  void LocalPerArcOptimizationPass(const GraphInference& fweights, size_t beam_size) {
     std::vector<std::pair<double, GraphFeature> > empty;
     for (const GraphQuery::Arc& arc : query_->arcs_) {
       if (arc.node_a == arc.node_b) continue;
@@ -544,7 +688,7 @@ public:
 #ifdef GRAPH_INFERENCE_STATS
       int best_position = -1;
 #endif
-      for (size_t i = 0; i < candidates.size() && i < kPerArcBeamSize; ++i) {
+      for (size_t i = 0; i < candidates.size() && i < beam_size; ++i) {
         assignments_[arc.node_a].label = candidates[i].second.a_;
         assignments_[arc.node_b].label = candidates[i].second.b_;
         if (HasDuplicationConflictsAtNode(arc.node_a) ||
@@ -842,7 +986,15 @@ Nice2Assignment* GraphInference::CreateAssignment(Nice2Query* query) const {
 void GraphInference::PerformAssignmentOptimization(GraphNodeAssignment* a) const {
   double score = a->GetTotalScore(*this);
   VLOG(1) << "Start score " << score;
+  if (FLAGS_initial_greedy_assignment_pass) {
+    a->InitialGreedyAssignmentPass(*this);
+    score = a->GetTotalScore(*this);
+    VLOG(1) << "Past greedy pass score " << score;
+  }
+
   int passes = std::max(FLAGS_graph_per_node_passes, std::max(FLAGS_graph_loopy_bp_passes, FLAGS_graph_per_arc_passes));
+  size_t per_node_beam_size = kStartPerNodeBeamSize;
+  size_t per_arc_beam_size = kStartPerArcBeamSize;
   for (int pass = 0; pass < passes; ++pass) {
     if (pass < FLAGS_graph_loopy_bp_passes) {
       VLOG(1) << "prescore  " << score;
@@ -855,18 +1007,27 @@ void GraphInference::PerformAssignmentOptimization(GraphNodeAssignment* a) const
     }
     if (pass < FLAGS_graph_per_node_passes) {
       int64 start_time = GetCurrentTimeMicros();
-      a->LocalPerNodeOptimizationPass(*this);
+      if (FLAGS_duplicate_name_resolution) {
+        a->LocalPerNodeOptimizationPassWithDuplicateNameResolution(*this, per_node_beam_size);
+      } else {
+        a->LocalPerNodeOptimizationPass(*this, per_node_beam_size);
+      }
       int64 end_time = GetCurrentTimeMicros();
       VLOG(2) << "Per node pass " << (end_time - start_time)/1000 << "ms.";
+
+      per_node_beam_size = std::min( per_node_beam_size * 2, kMaxPerNodeBeamSize);
     }
     if (pass < FLAGS_graph_per_arc_passes) {
       int64 start_time = GetCurrentTimeMicros();
-      a->LocalPerArcOptimizationPass(*this);
+      a->LocalPerArcOptimizationPass(*this, per_arc_beam_size);
       int64 end_time = GetCurrentTimeMicros();
       VLOG(2) << "Per arc pass " << (end_time - start_time)/1000 << "ms.";
+
+      per_arc_beam_size = std::min(per_arc_beam_size * 2, kMaxPerArcBeamSize);
     }
 
     double updated_score = a->GetTotalScore(*this);
+    VLOG(2) << "Got to score " << updated_score;
     if (updated_score == score) break;
     score = updated_score;
   }

@@ -19,6 +19,7 @@
 
 #include <string>
 
+// Utilities for color encoding for the Terminal.
 namespace HighlightColors {
   extern const std::string RED;
   extern const std::string GREEN;
