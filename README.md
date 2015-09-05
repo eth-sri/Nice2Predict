@@ -14,13 +14,15 @@ To compile, first install dependencies (on Ubuntu 14.04):
 > sudo apt-get install libgoogle-glog-dev libgflags-dev libjsoncpp-dev libmicrohttpd-dev libcurl4-openssl-dev libargtable2-dev cmake
 
 Install Google SparseHash 2.0.2:
-https://code.google.com/p/sparsehash/downloads/list
+https://github.com/sparsehash/sparsehash
 
 And then install json-rpc-cpp from:
 https://github.com/cinemast/libjson-rpc-cpp
 
 [Optional] Install Google Performance Tools:
+
 1. libunwind: http://download.savannah.gnu.org/releases/libunwind/libunwind-1.1.tar.gz
+
 2. gperftools: https://code.google.com/p/gperftools/
 
 [Optional] Using Eclipse CDT with C++11:
