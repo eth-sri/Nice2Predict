@@ -33,6 +33,7 @@ public:
   }
 
   bool IsStringLabelValid(const char* s) const;
+  google::dense_hash_map<int, bool> valid_labels_;
 
 private:
   void LoadRules(const std::string& filename);
@@ -49,7 +50,6 @@ private:
 
   std::vector<CheckingRule> rules_;
 
-  google::dense_hash_map<int, bool> valid_labels_;
   bool is_loaded_;
 };
 
