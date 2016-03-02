@@ -20,7 +20,7 @@
 #include <mutex>
 #include <string>
 #include <map>
-#include "jsoncpp/json/json.h"
+#include "json/json.h"
 
 // Abstract classes for inference.
 
@@ -103,6 +103,16 @@ public:
       const Nice2Query* query,
       const Nice2Assignment* assignment,
       double learning_rate,
+      PrecisionStats* stats) = 0;
+
+  virtual void PLInit(double regularization, double margin, int beam_size, double pl_regularizer) = 0;
+
+  // This method executes a training based on the optimization of the pseudolikelihood
+  virtual void PLLearn(
+      const Nice2Query* query,
+      const Nice2Assignment* assignment,
+      double learning_rate,
+      int num_training_samples,
       PrecisionStats* stats) = 0;
 
   // All queries that a SSVM should learn from must be given first with AddQueryToModel.

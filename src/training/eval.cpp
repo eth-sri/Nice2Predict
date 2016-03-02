@@ -24,7 +24,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include "jsoncpp/json/json.h"
+#include "json/json.h"
 #include "graph_inference.h"
 
 #include "stringprintf.h"

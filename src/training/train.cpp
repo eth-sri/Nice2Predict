@@ -24,7 +24,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include "jsoncpp/json/json.h"
+#include "json/json.h"
 #include "graph_inference.h"
 
 #include "stringprintf.h"
@@ -40,12 +40,15 @@ DEFINE_int32(num_training_passes, 24, "Number of passes in training.");
 DEFINE_double(start_learning_rate, 0.1, "Initial learning rate");
 DEFINE_double(stop_learning_rate, 0.0001, "Stop learning if learning rate falls below the value");
 DEFINE_double(regularization_const, 2.0, "Regularization constant. The higher, the more regularization.");
+DEFINE_double(pl_regularization_const, 2.0, "Pseudolikelihood regularizer.");
 DEFINE_double(svm_margin, 0.1, "SVM Margin = Penalty for keeping equal labels as in the training data during training.");
+DEFINE_int32(beam_size, 5, "Beam size used to get the labels space for the normalization function when training with pseudolikelihood");
 
 DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is performed with the specified number of folds");
 DEFINE_bool(print_confusion, false, "Print confusion statistics instead of training.");
 
 DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multiclass classifier.");
+DEFINE_bool(train_pseudolikelihood, false, "Perfom training on pseudolikelihood optimization.");
 
 typedef std::function<void(const Json::Value&, const Json::Value&)> InputProcessor;
 void ForeachInput(RecordInput* input, InputProcessor proc) {
@@ -120,7 +123,7 @@ void ParallelForeachInput(RecordInput* input, InputProcessor proc) {
   }
 }
 
-void InitTrain(RecordInput* input, GraphInference* inference) {
+int InitTrain(RecordInput* input, GraphInference* inference) {
   int count = 0;
   std::mutex mutex;
   ParallelForeachInput(input, [&inference,&count,&mutex](const Json::Value& query, const Json::Value& assign) {
@@ -130,6 +133,7 @@ void InitTrain(RecordInput* input, GraphInference* inference) {
   });
   LOG(INFO) << "Loaded " << count << " training data samples.";
   inference->PrepareForInference();
+  return count;
 }
 
 
@@ -157,12 +161,25 @@ void TestInference(RecordInput* input, GraphInference* inference) {
 
 }
 
-void Train(RecordInput* input, GraphInference* inference) {
-  inference->SSVMInit(FLAGS_regularization_const, FLAGS_svm_margin);
+void Train(RecordInput* input, GraphInference* inference, int num_training_samples) {
+  if (FLAGS_train_pseudolikelihood == false) {
+    inference->SSVMInit(FLAGS_regularization_const, FLAGS_svm_margin);
+  } else {
+    inference->PLInit(FLAGS_regularization_const, FLAGS_svm_margin, FLAGS_beam_size, FLAGS_pl_regularization_const);
+  }
   double learning_rate = FLAGS_start_learning_rate;
-  LOG(INFO) << "Starting training with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
-      << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
-      << " and --svm_margin=" << std::fixed << FLAGS_svm_margin;
+  if (FLAGS_train_pseudolikelihood == false) {
+    LOG(INFO) << "Starting training with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
+         << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
+         << " and --svm_margin=" << std::fixed << FLAGS_svm_margin;
+  } else {
+    LOG(INFO) << "Starting training using pseudolikelihood as objective function with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
+        << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
+        << ", --svm_margin=" << std::fixed << FLAGS_svm_margin
+        << ", --pl_regularization_const=" << std::fixed << FLAGS_pl_regularization_const
+        << " and --beam_size=" << std::fixed << FLAGS_beam_size;
+  }
+
   double last_error_rate = 1.0;
   for (int pass = 0; pass < FLAGS_num_training_passes; ++pass) {
     double error_rate = 0.0;
@@ -171,12 +188,16 @@ void Train(RecordInput* input, GraphInference* inference) {
 
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
-    ParallelForeachInput(input, [&inference,&stats,learning_rate](const Json::Value& query, const Json::Value& assign) {
+    ParallelForeachInput(input, [&inference,&stats,learning_rate,num_training_samples](const Json::Value& query, const Json::Value& assign) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromJSON(query);
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
       a->FromJSON(assign);
-      inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
+      if (FLAGS_train_pseudolikelihood == false) {
+        inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
+      } else {
+        inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats);
+      }
     });
     int64 end_time = GetCurrentTimeMicros();
     LOG(INFO) << "Training pass took " << (end_time - start_time) / 1000 << "ms.";
@@ -260,8 +281,8 @@ int main(int argc, char** argv) {
           new ShuffledCacheInput(new CrossValidationInput(new FileRecordInput(FLAGS_input),
               fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
-      InitTrain(training_data.get(), &inference);
-      Train(training_data.get(), &inference);
+      int num_training_samples = InitTrain(training_data.get(), &inference);
+      Train(training_data.get(), &inference, num_training_samples);
       LOG(INFO) << "Evaluating fold " << fold_id;
       Evaluate(validation_data.get(), &inference, &total_stats);
     }
@@ -278,8 +299,8 @@ int main(int argc, char** argv) {
     // Structured training.
     GraphInference inference;
     std::unique_ptr<RecordInput> input(new ShuffledCacheInput(new FileRecordInput(FLAGS_input)));
-    InitTrain(input.get(), &inference);
-    Train(input.get(), &inference);
+    int num_training_samples = InitTrain(input.get(), &inference);
+    Train(input.get(), &inference, num_training_samples);
     // Save the model in the regular training.
     inference.SaveModel(FLAGS_out_model);
   }

@@ -57,13 +57,21 @@ public:
   int a_, b_, type_;
 };
 
-namespace std { namespace tr1 {
+/*namespace std { {
   template <> struct hash<GraphFeature> {
     size_t operator()(const GraphFeature& x) const {
       return x.a_ * 6037 + x.b_ * 6047 + x.type_;
     }
   };
-}}
+}}*/
+
+namespace std {
+  template <> struct hash<GraphFeature> {
+    size_t operator()(const GraphFeature& x) const {
+      return x.a_ * 6037 + x.b_ * 6047 + x.type_;
+    }
+  };
+}
 
 class GraphNodeAssignment;
 
@@ -84,6 +92,12 @@ public:
 
   virtual double GetAssignmentScore(const Nice2Assignment* assignment) const override;
 
+  virtual void UpdateStats(
+      const GraphNodeAssignment assignment,
+      const GraphNodeAssignment new_assignment,
+      PrecisionStats *stats,
+      const double margin);
+
   virtual void SSVMInit(double regularization, double margin) override;
 
   // This method is thread-safe for Hogwild training. i.e. two instance of SSVMLearn can be
@@ -92,6 +106,17 @@ public:
       const Nice2Query* query,
       const Nice2Assignment* assignment,
       double learning_rate,
+      PrecisionStats* stats) override;
+
+
+  virtual void PLInit(double regularization, double margin, int beam_size, double pl_regularizer) override;
+
+  // This method executes a training based on the optimization of the pseudolikelihood
+  virtual void PLLearn(
+      const Nice2Query* query,
+      const Nice2Assignment* assignment,
+      double learning_rate,
+      int num_training_samples,
       PrecisionStats* stats) override;
 
   virtual void AddQueryToModel(const Json::Value& query, const Json::Value& assignment) override;
@@ -125,9 +150,10 @@ private:
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   StringSet strings_;
   LabelChecker label_checker_;
-  double svm_regularizer_;
+  double regularizer_;
   double svm_margin_;
-
+  double pl_regularizer_;
+  int beam_size_;
   int num_svm_training_samples_;
 };
 
