@@ -93,8 +93,8 @@ public:
   virtual double GetAssignmentScore(const Nice2Assignment* assignment) const override;
 
   virtual void UpdateStats(
-      const GraphNodeAssignment assignment,
-      const GraphNodeAssignment new_assignment,
+      const GraphNodeAssignment& assignment,
+      const GraphNodeAssignment& new_assignment,
       PrecisionStats *stats,
       const double margin);
 

@@ -349,7 +349,7 @@ public:
     return label_set_->GetLabelName(label_id);
   }
 
-  // Returns conditional probability of a node
+  // Returns conditional probability of a label conditionated on its neighbouring labels
   double GetNodeConditionalProbabilityGivenNeighbours(const GraphInference& fweights, int node, const double normalization, int label) const {
     std::vector<Assignment> assignments(assignments_);
     assignments[node].label = label;
@@ -581,7 +581,7 @@ public:
       double gradient_weight) const {
     std::vector<Assignment> assignments(assignments_);
     assignments[node].label = label;
-    for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+    for (auto & arc : query_->arcs_adjacent_to_node_[node]) {
       GraphFeature feature(
           assignments[arc.node_a].label,
           assignments[arc.node_b].label,
@@ -1105,8 +1105,8 @@ double GraphInference::GetAssignmentScore(const Nice2Assignment* assignment) con
 }
 
 void GraphInference::UpdateStats(
-    const GraphNodeAssignment assignment,
-    const GraphNodeAssignment new_assignment,
+    const GraphNodeAssignment& assignment,
+    const GraphNodeAssignment& new_assignment,
     PrecisionStats *stats,
     const double margin) {
 
