@@ -23,7 +23,6 @@
 
 #include "stringprintf.h"
 #include "glog/logging.h"
-#include "gflags/gflags.h"
 
 #include "base.h"
 #include "maputil.h"
@@ -1187,14 +1186,9 @@ void GraphInference::PLLearn(
     const Nice2Assignment* assignment,
     double learning_rate,
     int num_training_samples,
-    PrecisionStats* stats) {
+    PrecisionStats* stats,
+    int num_pass) {
   const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
-
-  GraphNodeAssignment new_assignment(*a);
-  new_assignment.SetUpEqualityPenalty(svm_margin_);
-  PerformAssignmentOptimization(&new_assignment);
-
-  UpdateStats((*a), new_assignment, stats, svm_margin_);
 
   // Perform gradient descent
   SimpleFeaturesMap affected_features;  // Gradient for each affected feature.

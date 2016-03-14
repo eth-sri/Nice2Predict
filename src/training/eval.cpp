@@ -50,7 +50,7 @@ void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc) {
     if (line.empty()) continue;
     Json::Value v;
     if (!jsonreader.parse(line, v, false)) {
-      LOG(ERROR) << "Could not parse input: " << jsonreader.getFormatedErrorMessages() << "\n" << line;
+      LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages() << "\n" << line;
     } else {
       proc(v["query"], v["assign"]);
     }

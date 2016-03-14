@@ -117,7 +117,8 @@ public:
       const Nice2Assignment* assignment,
       double learning_rate,
       int num_training_samples,
-      PrecisionStats* stats) override;
+      PrecisionStats* stats,
+      int num_pass) override;
 
   virtual void AddQueryToModel(const Json::Value& query, const Json::Value& assignment) override;
   virtual void PrepareForInference() override;

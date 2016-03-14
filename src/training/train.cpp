@@ -60,9 +60,9 @@ void ForeachInput(RecordInput* input, InputProcessor proc) {
     if (line.empty()) continue;
     Json::Value v;
     if (!jsonreader.parse(line, v, false)) {
-      LOG(ERROR) << "Could not parse input: " << jsonreader.getFormatedErrorMessages();
+       LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages();
     } else {
-      proc(v["query"], v["assign"]);
+       proc(v["query"], v["assign"]);
     }
   }
 }
@@ -76,9 +76,9 @@ void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc) {
     if (line.empty()) continue;
     Json::Value v;
     if (!jsonreader.parse(line, v, false)) {
-      LOG(ERROR) << "Could not parse input: " << jsonreader.getFormatedErrorMessages() << "\n" << line;
+       LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages() << "\n" << line;
     } else {
-      proc(v["query"], v["assign"]);
+       proc(v["query"], v["assign"]);
     }
   }
 }
@@ -188,7 +188,7 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
 
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
-    ParallelForeachInput(input, [&inference,&stats,learning_rate,num_training_samples](const Json::Value& query, const Json::Value& assign) {
+    ParallelForeachInput(input, [&inference,&stats,learning_rate,num_training_samples,pass](const Json::Value& query, const Json::Value& assign) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromJSON(query);
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
@@ -196,7 +196,7 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
       if (FLAGS_train_pseudolikelihood == false) {
         inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
       } else {
-        inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats);
+        inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats, pass);
       }
     });
     int64 end_time = GetCurrentTimeMicros();
@@ -263,7 +263,6 @@ void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
 
   total_stats->AddStats(stats);
 }
-
 
 int main(int argc, char** argv) {
   google::InstallFailureSignalHandler();

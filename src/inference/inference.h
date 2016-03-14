@@ -20,7 +20,7 @@
 #include <mutex>
 #include <string>
 #include <map>
-#include "json/json.h"
+#include "jsoncpp/json/json.h"
 
 // Abstract classes for inference.
 
@@ -113,7 +113,8 @@ public:
       const Nice2Assignment* assignment,
       double learning_rate,
       int num_training_samples,
-      PrecisionStats* stats) = 0;
+      PrecisionStats* stats,
+      int num_pass) = 0;
 
   // All queries that a SSVM should learn from must be given first with AddQueryToModel.
   // This is to ensure all the relevant features are added to the model.
