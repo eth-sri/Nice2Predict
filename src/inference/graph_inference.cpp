@@ -350,21 +350,17 @@ public:
 
   // Returns conditional probability of a label conditionated on its neighbouring labels
   double GetNodeConditionalProbabilityGivenNeighbours(const GraphInference& fweights, int node, const double normalization, int label) const {
-    std::vector<Assignment> assignments(assignments_);
-    assignments[node].label = label;
-    return exp(GetNodeScoreGivenAssignment(fweights, node, assignments)) / normalization;
+    return exp(GetNodeScoreGivenAssignmentToANode(fweights, node, node, label)) / normalization;
   }
 
   // Returns the normalization related to a certain node
   double GetNodeNormalizationConstantGivenNeighbours(const GraphInference& fweights, int node, std::vector<int>* candidates) const {
     double sum = -GetNodePenalty(node);
 
-    std::vector<Assignment> assignments(assignments_);
-    candidates->push_back(assignments[node].label);
+    candidates->push_back(assignments_[node].label);
 
     for (const int label : (*candidates)) {
-      assignments[node].label = label;
-      sum += exp(GetNodeScoreGivenAssignment(fweights, node, assignments));
+      sum += exp(GetNodeScoreGivenAssignmentToANode(fweights, node, node, label));
     }
 
     return sum;
@@ -377,24 +373,48 @@ public:
 
   // Gets the score contributed by all arcs adjacent to a node.
   double GetNodeScore(const GraphInference& fweights, int node) const {
-    return GetNodeScoreGivenAssignment(fweights, node, assignments_);
+    double sum = -GetNodePenalty(node);
+    const GraphInference::FeaturesMap& features = fweights.features_;
+    for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+       GraphFeature feature(
+            assignments_[arc.node_a].label,
+            assignments_[arc.node_b].label,
+            arc.type);
+       auto feature_it = features.find(feature);
+       if (feature_it != features.end()) {
+         sum += feature_it->second.getValue();
+       }
+     }
+     return sum;
   }
 
   // Gets the node score given an assignment
-  double GetNodeScoreGivenAssignment(const GraphInference& fweights, int node, const std::vector<Assignment> assignments) const {
+  double GetNodeScoreGivenAssignmentToANode(const GraphInference& fweights, int node, int node_assigned, int node_assignment) const {
     double sum = -GetNodePenalty(node);
-        const GraphInference::FeaturesMap& features = fweights.features_;
-        for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
-          GraphFeature feature(
-              assignments[arc.node_a].label,
-              assignments[arc.node_b].label,
-              arc.type);
-          auto feature_it = features.find(feature);
-          if (feature_it != features.end()) {
-            sum += feature_it->second.getValue();
-          }
-        }
-        return sum;
+    const GraphInference::FeaturesMap& features = fweights.features_;
+    for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+      int node_a_label;
+      int node_b_label;
+      if (arc.node_a == node_assigned) {
+        node_a_label = node_assignment;
+      } else {
+        node_a_label = assignments_[arc.node_a].label;
+      }
+      if (arc.node_b == node_assigned) {
+        node_b_label = node_assignment;
+      } else {
+        node_b_label = assignments_[arc.node_b].label;
+      }
+      GraphFeature feature(
+          node_a_label,
+          node_b_label,
+          arc.type);
+      auto feature_it = features.find(feature);
+      if (feature_it != features.end()) {
+        sum += feature_it->second.getValue();
+      }
+    }
+    return sum;
   }
 
   double GetNodeScoreOnAssignedNodes(
