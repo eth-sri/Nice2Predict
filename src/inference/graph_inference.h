@@ -57,21 +57,13 @@ public:
   int a_, b_, type_;
 };
 
-/*namespace std { {
+namespace std { namespace tr1 {
   template <> struct hash<GraphFeature> {
     size_t operator()(const GraphFeature& x) const {
       return x.a_ * 6037 + x.b_ * 6047 + x.type_;
     }
   };
-}}*/
-
-namespace std {
-  template <> struct hash<GraphFeature> {
-    size_t operator()(const GraphFeature& x) const {
-      return x.a_ * 6037 + x.b_ * 6047 + x.type_;
-    }
-  };
-}
+}}
 
 class GraphNodeAssignment;
 
