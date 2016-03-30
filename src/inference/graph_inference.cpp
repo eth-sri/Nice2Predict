@@ -1209,7 +1209,7 @@ void GraphInference::PLLearn(
     PrecisionStats* stats,
     int num_pass) {
   const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
-
+  //std::thread::id this_id = std::this_thread::get_id();
   // Perform gradient descent
   SimpleFeaturesMap affected_features;  // Gradient for each affected feature.
   affected_features.set_empty_key(GraphFeature(-1, -1, -1));
@@ -1228,7 +1228,7 @@ void GraphInference::PLLearn(
   }
 
   a->GetAffectedFeatures(&affected_features, beam_size_ * learning_rate);
-  a->RegularizeAffectedFeature(&affected_features, num_training_samples * pow(pl_regularizer_, 2));
+  //a->RegularizeAffectedFeature(&affected_features, num_training_samples * pow(pl_regularizer_, 2));
   for (auto it = affected_features.begin(); it != affected_features.end(); ++it) {
     if (it->second < -1e-9 || it->second > 1e-9) {
       auto features_it = features_.find(it->first);
@@ -1237,6 +1237,22 @@ void GraphInference::PLLearn(
      }
     }
   }
+
+  // Calculate cost function
+  /*double node_score_sum = 0;
+  double normalization_sum = 0;
+  for (int i = 0; i < a->assignments_.size(); i++) {
+    if (a->assignments_[i].must_infer) {
+      std::vector<int> candidates;
+      node_score_sum += a->GetNodeScore(*this, i);
+      a->GetLabelCandidates(*this, i, &candidates, beam_size_);
+      normalization_sum += a->GetNodeNormalizationConstantGivenNeighbours(*this, i, &candidates);
+    }
+  }
+  double cost_function = node_score_sum - normalization_sum;
+  LOG(INFO) << "node_score_sum of thread " << this_id << " : " << node_score_sum;
+  LOG(INFO) << "normalization_sum of thread " << this_id << " : " << normalization_sum;
+  LOG(INFO) << "Cost function of thread " << this_id << " : " << cost_function;*/
 }
 
 void GraphInference::DisplayGraph(

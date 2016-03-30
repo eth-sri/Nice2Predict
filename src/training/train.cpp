@@ -19,6 +19,7 @@
 #include <functional>
 #include <mutex>
 #include <thread>
+#include <math.h>
 
 #include "base.h"
 #include "gflags/gflags.h"
@@ -26,6 +27,8 @@
 
 #include "jsoncpp/json/json.h"
 #include "graph_inference.h"
+
+#include "gperftools/profiler.h"
 
 #include "stringprintf.h"
 #include "stringset.h"
@@ -49,6 +52,8 @@ DEFINE_bool(print_confusion, false, "Print confusion statistics instead of train
 
 DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multiclass classifier.");
 DEFINE_bool(train_pseudolikelihood, false, "Perfom training on pseudolikelihood optimization.");
+
+DEFINE_bool(profile, false, "Activate profiler");
 
 typedef std::function<void(const Json::Value&, const Json::Value&)> InputProcessor;
 void ForeachInput(RecordInput* input, InputProcessor proc) {
@@ -161,7 +166,7 @@ void TestInference(RecordInput* input, GraphInference* inference) {
 
 }
 
-void Train(RecordInput* input, GraphInference* inference, int num_training_samples) {
+void Train(RecordInput* input, GraphInference* inference, int num_training_samples, int fold_id) {
   if (FLAGS_train_pseudolikelihood == false) {
     inference->SSVMInit(FLAGS_regularization_const, FLAGS_svm_margin);
   } else {
@@ -188,23 +193,41 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
 
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
-    ParallelForeachInput(input, [&inference,&stats,learning_rate,num_training_samples,pass](const Json::Value& query, const Json::Value& assign) {
+    double current_learning_rate = learning_rate;
+    if (pass >= 10 && FLAGS_train_pseudolikelihood == true) {
+      current_learning_rate *= (1 / pow(pass, 0.5));
+    }
+    /*if (FLAGS_train_pseudolikelihood == true) {
+      current_learning_rate /= (2 * (pass % 10));
+    }*/
+    if (FLAGS_profile) {
+      std::string profile_filename = "train_";
+      profile_filename += std::to_string(fold_id);
+      profile_filename += "_";
+      profile_filename += std::to_string(pass);
+      profile_filename += ".prof";
+      ProfilerStart(profile_filename.c_str());
+    }
+    ParallelForeachInput(input, [&inference,&stats,current_learning_rate,num_training_samples, pass](const Json::Value& query, const Json::Value& assign) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromJSON(query);
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
       a->FromJSON(assign);
       if (FLAGS_train_pseudolikelihood == false) {
-        inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
+        inference->SSVMLearn(q.get(), a.get(), current_learning_rate, &stats);
       } else {
-        inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats, pass);
+        inference->PLLearn(q.get(), a.get(), current_learning_rate, num_training_samples, &stats, pass);
       }
     });
+    if (FLAGS_profile) {
+      ProfilerStop();
+    }
     int64 end_time = GetCurrentTimeMicros();
     LOG(INFO) << "Training pass took " << (end_time - start_time) / 1000 << "ms.";
 
     LOG(INFO) << "Correct " << stats.correct_labels << " vs " << stats.incorrect_labels << " incorrect labels.";
     error_rate = stats.incorrect_labels / (static_cast<double>(stats.incorrect_labels + stats.correct_labels));
-    LOG(INFO) << "Pass " << pass << " with learning rate " << learning_rate << " has error rate of " << std::fixed << error_rate;
+    LOG(INFO) << "Pass " << pass << " with learning rate " << current_learning_rate << " has error rate of " << std::fixed << error_rate;
     if (error_rate > last_error_rate) {
       LOG(INFO) << "Reverting last pass.";
       learning_rate *= 0.5;  // Halve the learning rate.
@@ -281,7 +304,7 @@ int main(int argc, char** argv) {
               fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
       int num_training_samples = InitTrain(training_data.get(), &inference);
-      Train(training_data.get(), &inference, num_training_samples);
+      Train(training_data.get(), &inference, num_training_samples, fold_id);
       LOG(INFO) << "Evaluating fold " << fold_id;
       Evaluate(validation_data.get(), &inference, &total_stats);
     }
@@ -299,7 +322,7 @@ int main(int argc, char** argv) {
     GraphInference inference;
     std::unique_ptr<RecordInput> input(new ShuffledCacheInput(new FileRecordInput(FLAGS_input)));
     int num_training_samples = InitTrain(input.get(), &inference);
-    Train(input.get(), &inference, num_training_samples);
+    Train(input.get(), &inference, num_training_samples, 0);
     // Save the model in the regular training.
     inference.SaveModel(FLAGS_out_model);
   }
