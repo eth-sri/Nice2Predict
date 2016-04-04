@@ -598,12 +598,18 @@ public:
       int node,
       int label,
       double gradient_weight) const {
-    std::vector<Assignment> assignments(assignments_);
-    assignments[node].label = label;
     for (auto & arc : query_->arcs_adjacent_to_node_[node]) {
+      int label_node_a = assignments_[arc.node_a].label;
+      int label_node_b = assignments_[arc.node_b].label;
+      if (arc.node_a == node) {
+        label_node_a = label;
+      }
+      if (arc.node_b == node) {
+        label_node_b = label;
+      }
       GraphFeature feature(
-          assignments[arc.node_a].label,
-          assignments[arc.node_b].label,
+          label_node_a,
+          label_node_b,
           arc.type);
       (*affected_features)[feature] += gradient_weight;
     }
@@ -1228,7 +1234,7 @@ void GraphInference::PLLearn(
   }
 
   a->GetAffectedFeatures(&affected_features, beam_size_ * learning_rate);
-  //a->RegularizeAffectedFeature(&affected_features, num_training_samples * pow(pl_regularizer_, 2));
+  a->RegularizeAffectedFeature(&affected_features, -num_training_samples * pow(pl_regularizer_, 2));
   for (auto it = affected_features.begin(); it != affected_features.end(); ++it) {
     if (it->second < -1e-9 || it->second > 1e-9) {
       auto features_it = features_.find(it->first);
