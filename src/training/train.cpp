@@ -43,7 +43,7 @@ DEFINE_int32(num_training_passes, 24, "Number of passes in training.");
 DEFINE_double(start_learning_rate, 0.1, "Initial learning rate");
 DEFINE_double(stop_learning_rate, 0.0001, "Stop learning if learning rate falls below the value");
 DEFINE_double(regularization_const, 2.0, "Regularization constant. The higher, the more regularization.");
-DEFINE_double(pl_regularization_const, 2.0, "Pseudolikelihood regularizer.");
+DEFINE_double(pl_regularization_const, 4.0, "Pseudolikelihood regularizer.");
 DEFINE_double(svm_margin, 0.1, "SVM Margin = Penalty for keeping equal labels as in the training data during training.");
 DEFINE_int32(beam_size, 5, "Beam size used to get the labels space for the normalization function when training with pseudolikelihood");
 
@@ -52,6 +52,7 @@ DEFINE_bool(print_confusion, false, "Print confusion statistics instead of train
 
 DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multiclass classifier.");
 DEFINE_bool(train_pseudolikelihood, false, "Perfom training on pseudolikelihood optimization.");
+DEFINE_bool(learning_prop_sqrt_pass, false, "Set learning rate proportional to the sqrt of the number of trainining pass.");
 
 DEFINE_bool(profile, false, "Activate profiler");
 
@@ -194,12 +195,9 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
     double current_learning_rate = learning_rate;
-    if (pass >= 10 && FLAGS_train_pseudolikelihood == true) {
-      current_learning_rate *= (1 / pow(pass, 0.5));
+    if (FLAGS_train_pseudolikelihood == true && FLAGS_learning_prop_sqrt_pass == true) {
+      current_learning_rate /= pow(pass + 1, 0.5);
     }
-    /*if (FLAGS_train_pseudolikelihood == true) {
-      current_learning_rate /= (2 * (pass % 10));
-    }*/
     if (FLAGS_profile) {
       std::string profile_filename = "train_";
       profile_filename += std::to_string(fold_id);
@@ -228,6 +226,9 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
     LOG(INFO) << "Correct " << stats.correct_labels << " vs " << stats.incorrect_labels << " incorrect labels.";
     error_rate = stats.incorrect_labels / (static_cast<double>(stats.incorrect_labels + stats.correct_labels));
     LOG(INFO) << "Pass " << pass << " with learning rate " << current_learning_rate << " has error rate of " << std::fixed << error_rate;
+    if (FLAGS_train_pseudolikelihood == true && FLAGS_learning_prop_sqrt_pass == true) {
+      learning_rate = current_learning_rate;
+    }
     if (error_rate > last_error_rate) {
       LOG(INFO) << "Reverting last pass.";
       learning_rate *= 0.5;  // Halve the learning rate.
