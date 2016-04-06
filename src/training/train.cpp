@@ -51,8 +51,13 @@ DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is per
 DEFINE_bool(print_confusion, false, "Print confusion statistics instead of training.");
 
 DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multiclass classifier.");
-DEFINE_bool(train_pseudolikelihood, false, "Perfom training on pseudolikelihood optimization.");
-DEFINE_bool(learning_prop_sqrt_pass, false, "Set learning rate proportional to the sqrt of the number of trainining pass.");
+DEFINE_bool(train_pseudolikelihood, false, "Perform training on pseudolikelihood optimization.");
+DEFINE_bool(train_pseudolikelihood_ssvm, false, "Perform combined training with first pseudolikelihood and then SSVM.");
+DEFINE_int32(num_pass_change_training,  10, "When using pseudolikelihood combined with SSVM for the training, this indicates after which pass change the training to SSVM");
+DEFINE_bool(learning_prop_sqrt_pass, false, "Set learning rate proportional to the sqrt of the number of training pass.");
+DEFINE_bool(learning_prop_pass, false, "Set learning rate proportional to the number of training pass.");
+DEFINE_bool(learning_prop_pass_and_initial_learn, false, "Set learning rate proportional to the number of training pass and the initial learning rate.");
+DEFINE_double(pl_lambda, 1.0, "Lambda used in the formula for computing the learning rate proportional to the training pass and the initial learning rate.");
 
 DEFINE_bool(profile, false, "Activate profiler");
 
@@ -168,10 +173,14 @@ void TestInference(RecordInput* input, GraphInference* inference) {
 }
 
 void Train(RecordInput* input, GraphInference* inference, int num_training_samples, int fold_id) {
-  if (FLAGS_train_pseudolikelihood == false) {
-    inference->SSVMInit(FLAGS_regularization_const, FLAGS_svm_margin);
+  inference->CommonInit(FLAGS_regularization_const);
+  if (FLAGS_train_pseudolikelihood == true) {
+    inference->PLInit(FLAGS_beam_size, FLAGS_pl_regularization_const);
+  } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
+    inference->PLInit(FLAGS_beam_size, FLAGS_pl_regularization_const);
+    inference->SSVMInit(FLAGS_svm_margin);
   } else {
-    inference->PLInit(FLAGS_regularization_const, FLAGS_svm_margin, FLAGS_beam_size, FLAGS_pl_regularization_const);
+    inference->SSVMInit(FLAGS_svm_margin);
   }
   double learning_rate = FLAGS_start_learning_rate;
   if (FLAGS_train_pseudolikelihood == false) {
@@ -187,6 +196,7 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
   }
 
   double last_error_rate = 1.0;
+  double initial_learning_rate = learning_rate;
   for (int pass = 0; pass < FLAGS_num_training_passes; ++pass) {
     double error_rate = 0.0;
 
@@ -194,10 +204,16 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
 
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
-    double current_learning_rate = learning_rate;
-    if (FLAGS_train_pseudolikelihood == true && FLAGS_learning_prop_sqrt_pass == true) {
-      current_learning_rate /= pow(pass + 1, 0.5);
+    if (FLAGS_train_pseudolikelihood == true) {
+      if (FLAGS_learning_prop_sqrt_pass == true) {
+        learning_rate /= pow(pass + 1, 0.5);
+      } else if (FLAGS_learning_prop_pass == true) {
+        learning_rate /= (pass + 1);
+      } else if (FLAGS_learning_prop_pass_and_initial_learn == true) {
+        learning_rate = initial_learning_rate / (1 + FLAGS_pl_lambda * (pass + 1));
+      }
     }
+
     if (FLAGS_profile) {
       std::string profile_filename = "train_";
       profile_filename += std::to_string(fold_id);
@@ -206,15 +222,22 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
       profile_filename += ".prof";
       ProfilerStart(profile_filename.c_str());
     }
-    ParallelForeachInput(input, [&inference,&stats,current_learning_rate,num_training_samples, pass](const Json::Value& query, const Json::Value& assign) {
+    ParallelForeachInput(input, [&inference,&stats,learning_rate,num_training_samples, pass](const Json::Value& query, const Json::Value& assign) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromJSON(query);
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
       a->FromJSON(assign);
-      if (FLAGS_train_pseudolikelihood == false) {
-        inference->SSVMLearn(q.get(), a.get(), current_learning_rate, &stats);
+      if (FLAGS_train_pseudolikelihood == true) {
+        inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats, pass);
+      } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
+        // use pseudolikelihood training to first compute the weights then use SSVM to finish the training
+        if (pass < FLAGS_num_pass_change_training) {
+          inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats, pass);
+        } else {
+          inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
+        }
       } else {
-        inference->PLLearn(q.get(), a.get(), current_learning_rate, num_training_samples, &stats, pass);
+        inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
       }
     });
     if (FLAGS_profile) {
@@ -225,10 +248,7 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
 
     LOG(INFO) << "Correct " << stats.correct_labels << " vs " << stats.incorrect_labels << " incorrect labels.";
     error_rate = stats.incorrect_labels / (static_cast<double>(stats.incorrect_labels + stats.correct_labels));
-    LOG(INFO) << "Pass " << pass << " with learning rate " << current_learning_rate << " has error rate of " << std::fixed << error_rate;
-    if (FLAGS_train_pseudolikelihood == true && FLAGS_learning_prop_sqrt_pass == true) {
-      learning_rate = current_learning_rate;
-    }
+    LOG(INFO) << "Pass " << pass << " with learning rate " << learning_rate << " has error rate of " << std::fixed << error_rate;
     if (error_rate > last_error_rate) {
       LOG(INFO) << "Reverting last pass.";
       learning_rate *= 0.5;  // Halve the learning rate.

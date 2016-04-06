@@ -1158,12 +1158,20 @@ void GraphInference::UpdateStats(
 
 }
 
-void GraphInference::SSVMInit(double regularization, double margin) {
+void GraphInference::CommonInit(double regularization) {
   regularizer_ = 1 / regularization;
   for (auto it = features_.begin(); it != features_.end(); ++it) {
-    it->second.setValue(regularizer_ * 0.5);
+     it->second.setValue(regularizer_ * 0.5);
   }
+}
+
+void GraphInference::SSVMInit(double margin) {
   svm_margin_ = margin;
+}
+
+void GraphInference::PLInit(int beam_size, double pl_regularizer) {
+  beam_size_ = beam_size;
+  pl_regularizer_ = pl_regularizer;
 }
 
 void GraphInference::SSVMLearn(
@@ -1197,16 +1205,6 @@ void GraphInference::SSVMLearn(
   }
 }
 
-void GraphInference::PLInit(double regularization, double margin, int beam_size, double pl_regularizer) {
-  regularizer_ = 1 / regularization;
-  for (auto it = features_.begin(); it != features_.end(); ++it) {
-    it->second.setValue(regularizer_ * 0.5);
-  }
-  beam_size_ = beam_size;
-  svm_margin_ = margin;
-  pl_regularizer_ = pl_regularizer;
-}
-
 void GraphInference::PLLearn(
     const Nice2Query* query,
     const Nice2Assignment* assignment,
@@ -1234,7 +1232,7 @@ void GraphInference::PLLearn(
   }
 
   a->GetAffectedFeatures(&affected_features, beam_size_ * learning_rate);
-  a->RegularizeAffectedFeature(&affected_features, -num_training_samples * pl_regularizer_);
+  //a->RegularizeAffectedFeature(&affected_features, -num_training_samples * pl_regularizer_);
   for (auto it = affected_features.begin(); it != affected_features.end(); ++it) {
     if (it->second < -1e-9 || it->second > 1e-9) {
       auto features_it = features_.find(it->first);

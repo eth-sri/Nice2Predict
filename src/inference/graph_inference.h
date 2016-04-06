@@ -90,7 +90,11 @@ public:
       PrecisionStats *stats,
       const double margin);
 
-  virtual void SSVMInit(double regularization, double margin) override;
+  virtual void CommonInit(double regularization) override;
+
+  virtual void SSVMInit(double margin) override;
+
+  virtual void PLInit(int beam_size, double pl_regularizer) override;
 
   // This method is thread-safe for Hogwild training. i.e. two instance of SSVMLearn can be
   // called in parallel, but they cannot be called in parallel with other method.
@@ -99,9 +103,6 @@ public:
       const Nice2Assignment* assignment,
       double learning_rate,
       PrecisionStats* stats) override;
-
-
-  virtual void PLInit(double regularization, double margin, int beam_size, double pl_regularizer) override;
 
   // This method executes a training based on the optimization of the pseudolikelihood
   virtual void PLLearn(
