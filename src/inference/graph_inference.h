@@ -94,7 +94,7 @@ public:
 
   virtual void SSVMInit(double margin) override;
 
-  virtual void PLInit(int beam_size, double pl_regularizer) override;
+  virtual void PLInit(int beam_size) override;
 
   // This method is thread-safe for Hogwild training. i.e. two instance of SSVMLearn can be
   // called in parallel, but they cannot be called in parallel with other method.
@@ -146,7 +146,6 @@ private:
   LabelChecker label_checker_;
   double regularizer_;
   double svm_margin_;
-  double pl_regularizer_;
   int beam_size_;
   int num_svm_training_samples_;
 };

@@ -98,7 +98,7 @@ public:
   virtual void SSVMInit(double margin) = 0;
 
   // Initializes PL learning
-  virtual void PLInit(int beam_size, double pl_regularizer) = 0;
+  virtual void PLInit(int beam_size) = 0;
 
   // Train on a single query + assignment of properties.
   // PrepareForInference and SSVMInit must have been called before SSVMLearn.

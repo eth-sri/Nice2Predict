@@ -615,14 +615,6 @@ public:
     }
   }
 
-  void RegularizeAffectedFeature(
-      GraphInference::SimpleFeaturesMap* affected_features,
-      double regularizer) const {
-    for (auto feature : (*affected_features)) {
-      feature.second += (feature.second / regularizer);
-    }
-  }
-
   void InitialGreedyAssignmentPass(const GraphInference& fweights) {
     std::vector<bool> assigned(assignments_.size(), false);
     for (size_t node = 0; node < assignments_.size(); ++node) {
@@ -1169,9 +1161,8 @@ void GraphInference::SSVMInit(double margin) {
   svm_margin_ = margin;
 }
 
-void GraphInference::PLInit(int beam_size, double pl_regularizer) {
+void GraphInference::PLInit(int beam_size) {
   beam_size_ = beam_size;
-  pl_regularizer_ = pl_regularizer;
 }
 
 void GraphInference::SSVMLearn(
@@ -1232,7 +1223,6 @@ void GraphInference::PLLearn(
   }
 
   a->GetAffectedFeatures(&affected_features, beam_size_ * learning_rate);
-  //a->RegularizeAffectedFeature(&affected_features, -num_training_samples * pl_regularizer_);
   for (auto it = affected_features.begin(); it != affected_features.end(); ++it) {
     if (it->second < -1e-9 || it->second > 1e-9) {
       auto features_it = features_.find(it->first);

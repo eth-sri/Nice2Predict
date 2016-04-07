@@ -43,7 +43,6 @@ DEFINE_int32(num_training_passes, 24, "Number of passes in training.");
 DEFINE_double(start_learning_rate, 0.1, "Initial learning rate");
 DEFINE_double(stop_learning_rate, 0.0001, "Stop learning if learning rate falls below the value");
 DEFINE_double(regularization_const, 2.0, "Regularization constant. The higher, the more regularization.");
-DEFINE_double(pl_regularization_const, 4.0, "Pseudolikelihood regularizer.");
 DEFINE_double(svm_margin, 0.1, "SVM Margin = Penalty for keeping equal labels as in the training data during training.");
 DEFINE_int32(beam_size, 5, "Beam size used to get the labels space for the normalization function when training with pseudolikelihood");
 
@@ -54,6 +53,7 @@ DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multic
 DEFINE_bool(train_pseudolikelihood, false, "Perform training on pseudolikelihood optimization.");
 DEFINE_bool(train_pseudolikelihood_ssvm, false, "Perform combined training with first pseudolikelihood and then SSVM.");
 DEFINE_int32(num_pass_change_training,  10, "When using pseudolikelihood combined with SSVM for the training, this indicates after which pass change the training to SSVM");
+DEFINE_double(initial_learning_rate_ssvm, 0.1, "Initial learning rate of SSVM in the combined version.");
 DEFINE_bool(learning_prop_sqrt_pass, false, "Set learning rate proportional to the sqrt of the number of training pass.");
 DEFINE_bool(learning_prop_pass, false, "Set learning rate proportional to the number of training pass.");
 DEFINE_bool(learning_prop_pass_and_initial_learn, false, "Set learning rate proportional to the number of training pass and the initial learning rate.");
@@ -175,9 +175,9 @@ void TestInference(RecordInput* input, GraphInference* inference) {
 void Train(RecordInput* input, GraphInference* inference, int num_training_samples, int fold_id) {
   inference->CommonInit(FLAGS_regularization_const);
   if (FLAGS_train_pseudolikelihood == true) {
-    inference->PLInit(FLAGS_beam_size, FLAGS_pl_regularization_const);
+    inference->PLInit(FLAGS_beam_size);
   } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
-    inference->PLInit(FLAGS_beam_size, FLAGS_pl_regularization_const);
+    inference->PLInit(FLAGS_beam_size);
     inference->SSVMInit(FLAGS_svm_margin);
   } else {
     inference->SSVMInit(FLAGS_svm_margin);
@@ -191,7 +191,6 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
     LOG(INFO) << "Starting training using pseudolikelihood as objective function with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
         << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
         << ", --svm_margin=" << std::fixed << FLAGS_svm_margin
-        << ", --pl_regularization_const=" << std::fixed << FLAGS_pl_regularization_const
         << " and --beam_size=" << std::fixed << FLAGS_beam_size;
   }
 
@@ -204,7 +203,8 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
 
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
-    if (FLAGS_train_pseudolikelihood == true) {
+    if (FLAGS_train_pseudolikelihood == true ||
+        (FLAGS_train_pseudolikelihood_ssvm == true && pass < FLAGS_num_pass_change_training)) {
       if (FLAGS_learning_prop_sqrt_pass == true) {
         learning_rate /= pow(pass + 1, 0.5);
       } else if (FLAGS_learning_prop_pass == true) {
@@ -222,7 +222,7 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
       profile_filename += ".prof";
       ProfilerStart(profile_filename.c_str());
     }
-    ParallelForeachInput(input, [&inference,&stats,learning_rate,num_training_samples, pass](const Json::Value& query, const Json::Value& assign) {
+    ParallelForeachInput(input, [&inference,&stats,&learning_rate,num_training_samples, pass](const Json::Value& query, const Json::Value& assign) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromJSON(query);
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
@@ -234,6 +234,9 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
         if (pass < FLAGS_num_pass_change_training) {
           inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats, pass);
         } else {
+          if (pass == FLAGS_num_pass_change_training) {
+            learning_rate = FLAGS_initial_learning_rate_ssvm;
+          }
           inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
         }
       } else {
