@@ -237,12 +237,6 @@ public:
   virtual ~GraphNodeAssignment() {
   }
 
-  struct Assignment {
-    Assignment() : must_infer(false), label(-1) {}
-    bool must_infer;
-    int label;
-  };
-
   virtual void SetUpEqualityPenalty(double penalty) override {
     ClearPenalty();
     for (size_t i = 0; i < assignments_.size(); ++i) {
@@ -792,6 +786,12 @@ public:
   }
 
 private:
+  struct Assignment {
+    Assignment() : must_infer(false), label(-1) {}
+    bool must_infer;
+    int label;
+  };
+
   std::vector<Assignment> assignments_;
 
   struct LabelPenalty {
@@ -1200,7 +1200,6 @@ void GraphInference::PLLearn(
     const Nice2Query* query,
     const Nice2Assignment* assignment,
     double learning_rate,
-    int num_training_samples,
     PrecisionStats* stats,
     int num_pass) {
   const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
@@ -1210,7 +1209,7 @@ void GraphInference::PLLearn(
   affected_features.set_empty_key(GraphFeature(-1, -1, -1));
   affected_features.set_deleted_key(GraphFeature(-2, -2, -2));
 
-  for (int i = 0; i < a->assignments_.size(); i++) {
+  for (unsigned int i = 0; i < a->assignments_.size(); i++) {
     if (a->assignments_[i].must_infer) {
       std::vector<int> candidates;
       a->GetLabelCandidates(*this, i, &candidates, beam_size_);

@@ -172,7 +172,7 @@ void TestInference(RecordInput* input, GraphInference* inference) {
 
 }
 
-void Train(RecordInput* input, GraphInference* inference, int num_training_samples, int fold_id) {
+void Train(RecordInput* input, GraphInference* inference, int fold_id) {
   inference->CommonInit(FLAGS_regularization_const);
   if (FLAGS_train_pseudolikelihood == true) {
     inference->PLInit(FLAGS_beam_size);
@@ -190,7 +190,6 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
   } else {
     LOG(INFO) << "Starting training using pseudolikelihood as objective function with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
         << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
-        << ", --svm_margin=" << std::fixed << FLAGS_svm_margin
         << " and --beam_size=" << std::fixed << FLAGS_beam_size;
   }
 
@@ -222,17 +221,17 @@ void Train(RecordInput* input, GraphInference* inference, int num_training_sampl
       profile_filename += ".prof";
       ProfilerStart(profile_filename.c_str());
     }
-    ParallelForeachInput(input, [&inference,&stats,&learning_rate,num_training_samples, pass](const Json::Value& query, const Json::Value& assign) {
+    ParallelForeachInput(input, [&inference,&stats,&learning_rate,pass](const Json::Value& query, const Json::Value& assign) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromJSON(query);
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
       a->FromJSON(assign);
       if (FLAGS_train_pseudolikelihood == true) {
-        inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats, pass);
+        inference->PLLearn(q.get(), a.get(), learning_rate, &stats, pass);
       } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
         // use pseudolikelihood training to first compute the weights then use SSVM to finish the training
         if (pass < FLAGS_num_pass_change_training) {
-          inference->PLLearn(q.get(), a.get(), learning_rate, num_training_samples, &stats, pass);
+          inference->PLLearn(q.get(), a.get(), learning_rate, &stats, pass);
         } else {
           if (pass == FLAGS_num_pass_change_training) {
             learning_rate = FLAGS_initial_learning_rate_ssvm;
@@ -327,8 +326,8 @@ int main(int argc, char** argv) {
           new ShuffledCacheInput(new CrossValidationInput(new FileRecordInput(FLAGS_input),
               fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
-      int num_training_samples = InitTrain(training_data.get(), &inference);
-      Train(training_data.get(), &inference, num_training_samples, fold_id);
+      InitTrain(training_data.get(), &inference);
+      Train(training_data.get(), &inference, fold_id);
       LOG(INFO) << "Evaluating fold " << fold_id;
       Evaluate(validation_data.get(), &inference, &total_stats);
     }
@@ -345,8 +344,8 @@ int main(int argc, char** argv) {
     // Structured training.
     GraphInference inference;
     std::unique_ptr<RecordInput> input(new ShuffledCacheInput(new FileRecordInput(FLAGS_input)));
-    int num_training_samples = InitTrain(input.get(), &inference);
-    Train(input.get(), &inference, num_training_samples, 0);
+    InitTrain(input.get(), &inference);
+    Train(input.get(), &inference, 0);
     // Save the model in the regular training.
     inference.SaveModel(FLAGS_out_model);
   }

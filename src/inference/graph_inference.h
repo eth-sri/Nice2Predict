@@ -109,7 +109,6 @@ public:
       const Nice2Query* query,
       const Nice2Assignment* assignment,
       double learning_rate,
-      int num_training_samples,
       PrecisionStats* stats,
       int num_pass) override;
 
