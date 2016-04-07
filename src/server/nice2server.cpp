@@ -17,7 +17,6 @@
 #include "nice2server.h"
 
 #include "glog/logging.h"
-#include "gflags/gflags.h"
 #include "jsoncpp/json/json.h"
 #include "jsonrpccpp/server.h"
 #include "jsonrpccpp/server/connectors/httpserver.h"

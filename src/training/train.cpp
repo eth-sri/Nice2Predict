@@ -71,9 +71,9 @@ void ForeachInput(RecordInput* input, InputProcessor proc) {
     if (line.empty()) continue;
     Json::Value v;
     if (!jsonreader.parse(line, v, false)) {
-       LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages();
+      LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages();
     } else {
-       proc(v["query"], v["assign"]);
+      proc(v["query"], v["assign"]);
     }
   }
 }
@@ -87,9 +87,9 @@ void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc) {
     if (line.empty()) continue;
     Json::Value v;
     if (!jsonreader.parse(line, v, false)) {
-       LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages() << "\n" << line;
+      LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages() << "\n" << line;
     } else {
-       proc(v["query"], v["assign"]);
+      proc(v["query"], v["assign"]);
     }
   }
 }
@@ -134,7 +134,7 @@ void ParallelForeachInput(RecordInput* input, InputProcessor proc) {
   }
 }
 
-int InitTrain(RecordInput* input, GraphInference* inference) {
+void InitTrain(RecordInput* input, GraphInference* inference) {
   int count = 0;
   std::mutex mutex;
   ParallelForeachInput(input, [&inference,&count,&mutex](const Json::Value& query, const Json::Value& assign) {
@@ -144,7 +144,6 @@ int InitTrain(RecordInput* input, GraphInference* inference) {
   });
   LOG(INFO) << "Loaded " << count << " training data samples.";
   inference->PrepareForInference();
-  return count;
 }
 
 
@@ -183,14 +182,20 @@ void Train(RecordInput* input, GraphInference* inference, int fold_id) {
     inference->SSVMInit(FLAGS_svm_margin);
   }
   double learning_rate = FLAGS_start_learning_rate;
-  if (FLAGS_train_pseudolikelihood == false) {
-    LOG(INFO) << "Starting training with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
-         << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
-         << " and --svm_margin=" << std::fixed << FLAGS_svm_margin;
-  } else {
+  if (FLAGS_train_pseudolikelihood == true) {
     LOG(INFO) << "Starting training using pseudolikelihood as objective function with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
         << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
         << " and --beam_size=" << std::fixed << FLAGS_beam_size;
+  } else if (FLAGS_train_pseudolikelihood_ssvm == true){
+    LOG(INFO) << "Starting training using first pseudolikelihood as objective function and then change to SSVM after " << std::fixed << FLAGS_num_pass_change_training
+            << "with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
+            << ", --initial_learning_rate_ssvm=" << std::fixed << FLAGS_initial_learning_rate_ssvm
+            << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
+            << " and --beam_size=" << std::fixed << FLAGS_beam_size;
+  } else {
+    LOG(INFO) << "Starting SSVM training with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
+         << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
+         << " and --svm_margin=" << std::fixed << FLAGS_svm_margin;
   }
 
   double last_error_rate = 1.0;
