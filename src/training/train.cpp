@@ -172,7 +172,7 @@ void TestInference(RecordInput* input, GraphInference* inference) {
 }
 
 void Train(RecordInput* input, GraphInference* inference, int fold_id) {
-  inference->CommonInit(FLAGS_regularization_const);
+  inference->InitializeFeatureWeights(FLAGS_regularization_const);
   if (FLAGS_train_pseudolikelihood == true) {
     inference->PLInit(FLAGS_beam_size);
   } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
@@ -232,11 +232,11 @@ void Train(RecordInput* input, GraphInference* inference, int fold_id) {
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
       a->FromJSON(assign);
       if (FLAGS_train_pseudolikelihood == true) {
-        inference->PLLearn(q.get(), a.get(), learning_rate, &stats, pass);
+        inference->PLLearn(q.get(), a.get(), learning_rate);
       } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
         // use pseudolikelihood training to first compute the weights then use SSVM to finish the training
         if (pass < FLAGS_num_pass_change_training) {
-          inference->PLLearn(q.get(), a.get(), learning_rate, &stats, pass);
+          inference->PLLearn(q.get(), a.get(), learning_rate);
         } else {
           if (pass == FLAGS_num_pass_change_training) {
             learning_rate = FLAGS_initial_learning_rate_ssvm;

@@ -342,24 +342,6 @@ public:
     return label_set_->GetLabelName(label_id);
   }
 
-  // Returns conditional probability of a label conditionated on its neighbouring labels
-  double GetNodeConditionalProbabilityGivenNeighbours(const GraphInference& fweights, int node, const double normalization, int label) const {
-    return exp(GetNodeScoreGivenAssignmentToANode(fweights, node, node, label)) / normalization;
-  }
-
-  // Returns the normalization related to a certain node
-  double GetNodeNormalizationConstantGivenNeighbours(const GraphInference& fweights, int node, std::vector<int>* candidates) const {
-    double sum = -GetNodePenalty(node);
-
-    candidates->push_back(assignments_[node].label);
-
-    for (const int label : (*candidates)) {
-      sum += exp(GetNodeScoreGivenAssignmentToANode(fweights, node, node, label));
-    }
-
-    return sum;
-  }
-
   // Returns the penalty associated with a node and its label (used in Max-Margin training).
   double GetNodePenalty(int node) const {
     return (assignments_[node].label == penalties_[node].label) ? penalties_[node].penalty : 0.0;
@@ -587,12 +569,12 @@ public:
 
   // Method that given a certain node and a label, first assign that label to the given node and then add the gradient_weight
   // to every affected feature related to the given node and its neighbours
-  void GetNeghbouringAffectedFeature(
+  void GetNeighboringAffectedFeatures(
       GraphInference::SimpleFeaturesMap* affected_features,
       int node,
       int label,
       double gradient_weight) const {
-    for (auto & arc : query_->arcs_adjacent_to_node_[node]) {
+    for (const auto & arc : query_->arcs_adjacent_to_node_[node]) {
       int label_node_a = assignments_[arc.node_a].label;
       int label_node_b = assignments_[arc.node_b].label;
       if (arc.node_a == node) {
@@ -1150,7 +1132,7 @@ void GraphInference::UpdateStats(
 
 }
 
-void GraphInference::CommonInit(double regularization) {
+void GraphInference::InitializeFeatureWeights(double regularization) {
   regularizer_ = 1 / regularization;
   for (auto it = features_.begin(); it != features_.end(); ++it) {
      it->second.setValue(regularizer_ * 0.5);
@@ -1199,9 +1181,7 @@ void GraphInference::SSVMLearn(
 void GraphInference::PLLearn(
     const Nice2Query* query,
     const Nice2Assignment* assignment,
-    double learning_rate,
-    PrecisionStats* stats,
-    int num_pass) {
+    double learning_rate) {
   const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
 
   // Perform gradient descent
@@ -1213,10 +1193,16 @@ void GraphInference::PLLearn(
     if (a->assignments_[i].must_infer) {
       std::vector<int> candidates;
       a->GetLabelCandidates(*this, i, &candidates, beam_size_);
-      double normalization_constant = a->GetNodeNormalizationConstantGivenNeighbours(*this, i, &candidates);
+
+      // Compute estimated normalisation constant
+      double normalization_constant = -a->GetNodePenalty(i);
+      candidates.push_back(a->assignments_[i].label);
+      for (const int label : candidates) {
+        normalization_constant += exp(a->GetNodeScoreGivenAssignmentToANode(*this, i, i, label));
+      }
       for (int label : candidates) {
-        double marginal_probability = a->GetNodeConditionalProbabilityGivenNeighbours(*this, i, normalization_constant, label);
-        a->GetNeghbouringAffectedFeature(&affected_features, i, label, -learning_rate * marginal_probability);
+        double marginal_probability = exp(a->GetNodeScoreGivenAssignmentToANode(*this, i, i, label)) / normalization_constant;
+        a->GetNeighboringAffectedFeatures(&affected_features, i, label, -learning_rate * marginal_probability);
       }
     }
   }

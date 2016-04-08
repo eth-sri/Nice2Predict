@@ -90,7 +90,7 @@ public:
       PrecisionStats *stats,
       const double margin);
 
-  virtual void CommonInit(double regularization) override;
+  virtual void InitializeFeatureWeights(double regularization) override;
 
   virtual void SSVMInit(double margin) override;
 
@@ -108,9 +108,7 @@ public:
   virtual void PLLearn(
       const Nice2Query* query,
       const Nice2Assignment* assignment,
-      double learning_rate,
-      PrecisionStats* stats,
-      int num_pass) override;
+      double learning_rate) override;
 
   virtual void AddQueryToModel(const Json::Value& query, const Json::Value& assignment) override;
   virtual void PrepareForInference() override;

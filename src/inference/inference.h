@@ -92,7 +92,7 @@ public:
   virtual double GetAssignmentScore(const Nice2Assignment* assignment) const = 0;
 
   // Method containing common initializations between the different learning algorithms
-  virtual void CommonInit(double regularization) = 0;
+  virtual void InitializeFeatureWeights(double regularization) = 0;
 
   // Initializes SSVM learning.
   virtual void SSVMInit(double margin) = 0;
@@ -116,9 +116,7 @@ public:
   virtual void PLLearn(
       const Nice2Query* query,
       const Nice2Assignment* assignment,
-      double learning_rate,
-      PrecisionStats* stats,
-      int num_pass) = 0;
+      double learning_rate) = 0;
 
   // All queries that a SSVM should learn from must be given first with AddQueryToModel.
   // This is to ensure all the relevant features are added to the model.
