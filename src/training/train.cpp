@@ -28,11 +28,18 @@
 #include "jsoncpp/json/json.h"
 #include "graph_inference.h"
 
-#include "gperftools/profiler.h"
-
 #include "stringprintf.h"
 #include "stringset.h"
 #include "readerutil.h"
+
+const std::string SSVM_TRAIN_NAME = "ssvm";
+const std::string PL_TRAIN_NAME = "pl";
+const std::string PL_SSVM_TRAIN_NAME = "pl_ssvm";
+
+const std::string NO_LEARN_RATE_UPDATE_PL = "fixed";
+const std::string PROP_SQRT_PASS_LEARN_RATE_UPDATE_PL = "prop_sqrt_pass";
+const std::string PROP_PASS_LEARN_RATE_UPDATE_PL = "prop_pass";
+const std::string PROP_INITIAL_LEARN_RATE_AND_PASS_LEARN_RATE_UPDATE_PL = "prop_pass_and_initial_learn_rate";
 
 DEFINE_string(input, "testdata", "Input file with JSON objects regarding training data");
 DEFINE_string(out_model, "model", "File prefix for output models");
@@ -49,17 +56,12 @@ DEFINE_int32(beam_size, 5, "Beam size used to get the labels space for the norma
 DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is performed with the specified number of folds");
 DEFINE_bool(print_confusion, false, "Print confusion statistics instead of training.");
 
-DEFINE_bool(train_multiclass_classifier, false, "Perform training by base multiclass classifier.");
-DEFINE_bool(train_pseudolikelihood, false, "Perform training on pseudolikelihood optimization.");
-DEFINE_bool(train_pseudolikelihood_ssvm, false, "Perform combined training with first pseudolikelihood and then SSVM.");
+DEFINE_string(training_method, SSVM_TRAIN_NAME, "Training method to be used.");
+
 DEFINE_int32(num_pass_change_training,  10, "When using pseudolikelihood combined with SSVM for the training, this indicates after which pass change the training to SSVM");
 DEFINE_double(initial_learning_rate_ssvm, 0.1, "Initial learning rate of SSVM in the combined version.");
-DEFINE_bool(learning_prop_sqrt_pass, false, "Set learning rate proportional to the sqrt of the number of training pass.");
-DEFINE_bool(learning_prop_pass, false, "Set learning rate proportional to the number of training pass.");
-DEFINE_bool(learning_prop_pass_and_initial_learn, false, "Set learning rate proportional to the number of training pass and the initial learning rate.");
+DEFINE_string(learning_rate_update_formula_pl, NO_LEARN_RATE_UPDATE_PL,"Learning update formula for PL learning. ");
 DEFINE_double(pl_lambda, 1.0, "Lambda used in the formula for computing the learning rate proportional to the training pass and the initial learning rate.");
-
-DEFINE_bool(profile, false, "Activate profiler");
 
 typedef std::function<void(const Json::Value&, const Json::Value&)> InputProcessor;
 void ForeachInput(RecordInput* input, InputProcessor proc) {
@@ -171,85 +173,71 @@ void TestInference(RecordInput* input, GraphInference* inference) {
 
 }
 
-void Train(RecordInput* input, GraphInference* inference, int fold_id) {
+void TrainPL(RecordInput* input, GraphInference* inference, int num_training_passes, double start_learning_rate) {
   inference->InitializeFeatureWeights(FLAGS_regularization_const);
-  if (FLAGS_train_pseudolikelihood == true) {
-    inference->PLInit(FLAGS_beam_size);
-  } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
-    inference->PLInit(FLAGS_beam_size);
-    inference->SSVMInit(FLAGS_svm_margin);
-  } else {
-    inference->SSVMInit(FLAGS_svm_margin);
+  inference->PLInit(FLAGS_beam_size);
+  double learning_rate = start_learning_rate;
+  LOG(INFO) << "Starting training using pseudolikelihood as objective function with --start_learning_rate=" << std::fixed << start_learning_rate
+          << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
+          << " and --beam_size=" << std::fixed << FLAGS_beam_size;
+
+  for (int pass = 0; pass < num_training_passes; ++pass) {
+
+    int64 start_time = GetCurrentTimeMicros();
+    if (FLAGS_learning_rate_update_formula_pl.compare(PROP_SQRT_PASS_LEARN_RATE_UPDATE_PL) == 0) {
+      learning_rate /= pow(pass + 1, 0.5);
+    } else if (FLAGS_learning_rate_update_formula_pl.compare(PROP_PASS_LEARN_RATE_UPDATE_PL) == 0) {
+      learning_rate /= (pass + 1);
+    } else if (FLAGS_learning_rate_update_formula_pl.compare(PROP_INITIAL_LEARN_RATE_AND_PASS_LEARN_RATE_UPDATE_PL) == 0) {
+      learning_rate = start_learning_rate / (1 + FLAGS_pl_lambda * (pass + 1));
+    }
+
+    ParallelForeachInput(input, [&inference,&learning_rate,pass](const Json::Value& query, const Json::Value& assign) {
+      std::unique_ptr<Nice2Query> q(inference->CreateQuery());
+      q->FromJSON(query);
+      std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
+      a->FromJSON(assign);
+      inference->PLLearn(q.get(), a.get(), learning_rate);
+    });
+
+    int64 end_time = GetCurrentTimeMicros();
+    LOG(INFO) << "Training pass took " << (end_time - start_time) / 1000 << "ms.";
+
+    LOG(INFO) << "Pass " << pass << " with learning rate " << learning_rate;
+    if (learning_rate < FLAGS_stop_learning_rate) break;  // Stop learning in this case.
+    inference->PrepareForInference();
   }
-  double learning_rate = FLAGS_start_learning_rate;
-  if (FLAGS_train_pseudolikelihood == true) {
-    LOG(INFO) << "Starting training using pseudolikelihood as objective function with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
-        << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
-        << " and --beam_size=" << std::fixed << FLAGS_beam_size;
-  } else if (FLAGS_train_pseudolikelihood_ssvm == true){
-    LOG(INFO) << "Starting training using first pseudolikelihood as objective function and then change to SSVM after " << std::fixed << FLAGS_num_pass_change_training
-            << "with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
-            << ", --initial_learning_rate_ssvm=" << std::fixed << FLAGS_initial_learning_rate_ssvm
-            << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
-            << " and --beam_size=" << std::fixed << FLAGS_beam_size;
-  } else {
-    LOG(INFO) << "Starting SSVM training with --start_learning_rate=" << std::fixed << FLAGS_start_learning_rate
-         << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
-         << " and --svm_margin=" << std::fixed << FLAGS_svm_margin;
+}
+
+void TrainSSVM(RecordInput* input, GraphInference* inference, int num_training_passes, double start_learning_rate) {
+  if (FLAGS_training_method.compare(PL_SSVM_TRAIN_NAME) != 0) {
+    inference->InitializeFeatureWeights(FLAGS_regularization_const);
   }
+  inference->SSVMInit(FLAGS_svm_margin);
+
+  double learning_rate = start_learning_rate;
+
+  LOG(INFO) << "Starting SSVM training with --start_learning_rate=" << std::fixed << start_learning_rate
+       << ", --regularization_const=" << std::fixed << FLAGS_regularization_const
+       << " and --svm_margin=" << std::fixed << FLAGS_svm_margin;
 
   double last_error_rate = 1.0;
-  double initial_learning_rate = learning_rate;
-  for (int pass = 0; pass < FLAGS_num_training_passes; ++pass) {
+  for (int pass = 0; pass < num_training_passes; ++pass) {
     double error_rate = 0.0;
 
     GraphInference backup_inference(*inference);
 
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
-    if (FLAGS_train_pseudolikelihood == true ||
-        (FLAGS_train_pseudolikelihood_ssvm == true && pass < FLAGS_num_pass_change_training)) {
-      if (FLAGS_learning_prop_sqrt_pass == true) {
-        learning_rate /= pow(pass + 1, 0.5);
-      } else if (FLAGS_learning_prop_pass == true) {
-        learning_rate /= (pass + 1);
-      } else if (FLAGS_learning_prop_pass_and_initial_learn == true) {
-        learning_rate = initial_learning_rate / (1 + FLAGS_pl_lambda * (pass + 1));
-      }
-    }
 
-    if (FLAGS_profile) {
-      std::string profile_filename = "train_";
-      profile_filename += std::to_string(fold_id);
-      profile_filename += "_";
-      profile_filename += std::to_string(pass);
-      profile_filename += ".prof";
-      ProfilerStart(profile_filename.c_str());
-    }
     ParallelForeachInput(input, [&inference,&stats,&learning_rate,pass](const Json::Value& query, const Json::Value& assign) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromJSON(query);
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
       a->FromJSON(assign);
-      if (FLAGS_train_pseudolikelihood == true) {
-        inference->PLLearn(q.get(), a.get(), learning_rate);
-      } else if (FLAGS_train_pseudolikelihood_ssvm == true) {
-        // use pseudolikelihood training to first compute the weights then use SSVM to finish the training
-        if (pass < FLAGS_num_pass_change_training) {
-          inference->PLLearn(q.get(), a.get(), learning_rate);
-        } else {
-          if (pass == FLAGS_num_pass_change_training) {
-            learning_rate = FLAGS_initial_learning_rate_ssvm;
-          }
-          inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
-        }
-      } else {
-        inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
-      }
+      inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
     });
-    if (FLAGS_profile) {
-      ProfilerStop();
-    }
+
     int64 end_time = GetCurrentTimeMicros();
     LOG(INFO) << "Training pass took " << (end_time - start_time) / 1000 << "ms.";
 
@@ -332,7 +320,17 @@ int main(int argc, char** argv) {
               fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
       InitTrain(training_data.get(), &inference);
-      Train(training_data.get(), &inference, fold_id);
+      if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {
+        TrainPL(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+      } else if (FLAGS_training_method.compare(SSVM_TRAIN_NAME) == 0) {
+        TrainSSVM(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+      } else if (FLAGS_training_method.compare(PL_SSVM_TRAIN_NAME) == 0) {
+        TrainPL(training_data.get(), &inference, FLAGS_num_pass_change_training, FLAGS_start_learning_rate);
+        TrainSSVM(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_initial_learning_rate_ssvm);
+      } else {
+        LOG(INFO) << "ERROR: training method name not recognized";
+        return 1;
+      }
       LOG(INFO) << "Evaluating fold " << fold_id;
       Evaluate(validation_data.get(), &inference, &total_stats);
     }
@@ -350,7 +348,17 @@ int main(int argc, char** argv) {
     GraphInference inference;
     std::unique_ptr<RecordInput> input(new ShuffledCacheInput(new FileRecordInput(FLAGS_input)));
     InitTrain(input.get(), &inference);
-    Train(input.get(), &inference, 0);
+    if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {
+      TrainPL(input.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+    } else if (FLAGS_training_method.compare(SSVM_TRAIN_NAME) == 0) {
+      TrainSSVM(input.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+    } else if (FLAGS_training_method.compare(PL_SSVM_TRAIN_NAME) == 0) {
+      TrainPL(input.get(), &inference, FLAGS_num_pass_change_training, FLAGS_start_learning_rate);
+      TrainSSVM(input.get(), &inference, FLAGS_num_training_passes, FLAGS_initial_learning_rate_ssvm);
+    } else {
+      LOG(INFO) << "ERROR: training method name not recognized";
+      return 1;
+    }
     // Save the model in the regular training.
     inference.SaveModel(FLAGS_out_model);
   }

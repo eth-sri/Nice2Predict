@@ -346,7 +346,6 @@ public:
   double GetNodePenalty(int node) const {
     return (assignments_[node].label == penalties_[node].label) ? penalties_[node].penalty : 0.0;
   }
-
   // Gets the score contributed by all arcs adjacent to a node.
   double GetNodeScore(const GraphInference& fweights, int node) const {
     double sum = -GetNodePenalty(node);
