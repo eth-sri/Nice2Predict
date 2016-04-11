@@ -17,6 +17,7 @@
 #include "graph_inference.h"
 
 #include <stdio.h>
+#include <math.h>
 #include <queue>
 #include <unordered_set>
 
@@ -113,7 +114,7 @@ class GraphQuery : public Nice2Query {
 public:
   explicit GraphQuery(const StringSet* ss, const LabelChecker* checker) : label_set_(ss, checker) {
     arcs_connecting_node_pair_.set_empty_key(IntPair(-1, -1));
-    arcs_connecting_node_pair_.set_deleted_key(IntPair(-1, -1));
+    arcs_connecting_node_pair_.set_deleted_key(IntPair(-2, -2));
   }
   virtual ~GraphQuery() {
   }
@@ -345,15 +346,43 @@ public:
   double GetNodePenalty(int node) const {
     return (assignments_[node].label == penalties_[node].label) ? penalties_[node].penalty : 0.0;
   }
-
   // Gets the score contributed by all arcs adjacent to a node.
   double GetNodeScore(const GraphInference& fweights, int node) const {
     double sum = -GetNodePenalty(node);
     const GraphInference::FeaturesMap& features = fweights.features_;
     for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+       GraphFeature feature(
+            assignments_[arc.node_a].label,
+            assignments_[arc.node_b].label,
+            arc.type);
+       auto feature_it = features.find(feature);
+       if (feature_it != features.end()) {
+         sum += feature_it->second.getValue();
+       }
+     }
+     return sum;
+  }
+
+  // Gets the node score given an assignment
+  double GetNodeScoreGivenAssignmentToANode(const GraphInference& fweights, int node, int node_assigned, int node_assignment) const {
+    double sum = -GetNodePenalty(node);
+    const GraphInference::FeaturesMap& features = fweights.features_;
+    for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
+      int node_a_label;
+      int node_b_label;
+      if (arc.node_a == node_assigned) {
+        node_a_label = node_assignment;
+      } else {
+        node_a_label = assignments_[arc.node_a].label;
+      }
+      if (arc.node_b == node_assigned) {
+        node_b_label = node_assignment;
+      } else {
+        node_b_label = assignments_[arc.node_b].label;
+      }
       GraphFeature feature(
-          assignments_[arc.node_a].label,
-          assignments_[arc.node_b].label,
+          node_a_label,
+          node_b_label,
           arc.type);
       auto feature_it = features.find(feature);
       if (feature_it != features.end()) {
@@ -532,6 +561,30 @@ public:
       GraphFeature feature(
           assignments_[arc.node_a].label,
           assignments_[arc.node_b].label,
+          arc.type);
+      (*affected_features)[feature] += gradient_weight;
+    }
+  }
+
+  // Method that given a certain node and a label, first assign that label to the given node and then add the gradient_weight
+  // to every affected feature related to the given node and its neighbours
+  void GetNeighboringAffectedFeatures(
+      GraphInference::SimpleFeaturesMap* affected_features,
+      int node,
+      int label,
+      double gradient_weight) const {
+    for (const auto & arc : query_->arcs_adjacent_to_node_[node]) {
+      int label_node_a = assignments_[arc.node_a].label;
+      int label_node_b = assignments_[arc.node_b].label;
+      if (arc.node_a == node) {
+        label_node_a = label;
+      }
+      if (arc.node_b == node) {
+        label_node_b = label;
+      }
+      GraphFeature feature(
+          label_node_a,
+          label_node_b,
           arc.type);
       (*affected_features)[feature] += gradient_weight;
     }
@@ -922,7 +975,7 @@ private:
 
 
 
-GraphInference::GraphInference() : svm_regularizer_(1.0), svm_margin_(1e-9), num_svm_training_samples_(0) {
+GraphInference::GraphInference() : regularizer_(1.0), svm_margin_(1e-9), num_svm_training_samples_(0) {
   // Initialize dense_hash_map.
   features_.set_empty_key(GraphFeature(-1, -1, -1));
   features_.set_deleted_key(GraphFeature(-2, -2, -2));
@@ -1049,29 +1102,16 @@ double GraphInference::GetAssignmentScore(const Nice2Assignment* assignment) con
   return a->GetTotalScore(*this);
 }
 
-void GraphInference::SSVMInit(double regularization, double margin) {
-  svm_regularizer_ = 1 / regularization;
-  for (auto it = features_.begin(); it != features_.end(); ++it) {
-    it->second.setValue(svm_regularizer_ * 0.5);
-  }
-  svm_margin_ = margin;
-}
-
-void GraphInference::SSVMLearn(
-    const Nice2Query* query,
-    const Nice2Assignment* assignment,
-    double learning_rate,
-    PrecisionStats* stats) {
-  const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
-
-  GraphNodeAssignment new_assignment(*a);
-  new_assignment.SetUpEqualityPenalty(svm_margin_);
-  PerformAssignmentOptimization(&new_assignment);
+void GraphInference::UpdateStats(
+    const GraphNodeAssignment& assignment,
+    const GraphNodeAssignment& new_assignment,
+    PrecisionStats *stats,
+    const double margin) {
 
   int correct_labels = 0, incorrect_labels = 0;
   for (size_t i = 0; i < new_assignment.assignments_.size(); ++i) {
     if (new_assignment.assignments_[i].must_infer) {
-      if (new_assignment.assignments_[i].label == a->assignments_[i].label) {
+      if (new_assignment.assignments_[i].label == assignment.assignments_[i].label) {
         ++correct_labels;
       } else {
         ++incorrect_labels;
@@ -1089,6 +1129,36 @@ void GraphInference::SSVMLearn(
     }
   }
 
+}
+
+void GraphInference::InitializeFeatureWeights(double regularization) {
+  regularizer_ = 1 / regularization;
+  for (auto it = features_.begin(); it != features_.end(); ++it) {
+     it->second.setValue(regularizer_ * 0.5);
+  }
+}
+
+void GraphInference::SSVMInit(double margin) {
+  svm_margin_ = margin;
+}
+
+void GraphInference::PLInit(int beam_size) {
+  beam_size_ = beam_size;
+}
+
+void GraphInference::SSVMLearn(
+    const Nice2Query* query,
+    const Nice2Assignment* assignment,
+    double learning_rate,
+    PrecisionStats* stats) {
+  const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
+
+  GraphNodeAssignment new_assignment(*a);
+  new_assignment.SetUpEqualityPenalty(svm_margin_);
+  PerformAssignmentOptimization(&new_assignment);
+
+  UpdateStats((*a), new_assignment, stats, svm_margin_);
+
   // Perform gradient descent.
   SimpleFeaturesMap affected_features;  // Gradient for each affected feature.
   affected_features.set_empty_key(GraphFeature(-1, -1, -1));
@@ -1101,8 +1171,48 @@ void GraphInference::SSVMLearn(
       VLOG(3) << a->GetLabelName(it->first.a_) << " " << a->GetLabelName(it->first.b_) << " " << a->GetLabelName(it->first.type_) << " " << it->second;
       auto features_it = features_.find(it->first);
       if (features_it != features_.end()) {
-        features_it->second.atomicAddRegularized(it->second, 0, svm_regularizer_);
+        features_it->second.atomicAddRegularized(it->second, 0, regularizer_);
       }
+    }
+  }
+}
+
+void GraphInference::PLLearn(
+    const Nice2Query* query,
+    const Nice2Assignment* assignment,
+    double learning_rate) {
+  const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
+
+  // Perform gradient descent
+  SimpleFeaturesMap affected_features;  // Gradient for each affected feature.
+  affected_features.set_empty_key(GraphFeature(-1, -1, -1));
+  affected_features.set_deleted_key(GraphFeature(-2, -2, -2));
+
+  for (unsigned int i = 0; i < a->assignments_.size(); i++) {
+    if (a->assignments_[i].must_infer) {
+      std::vector<int> candidates;
+      a->GetLabelCandidates(*this, i, &candidates, beam_size_);
+
+      // Compute estimated normalisation constant
+      double normalization_constant = -a->GetNodePenalty(i);
+      candidates.push_back(a->assignments_[i].label);
+      for (const int label : candidates) {
+        normalization_constant += exp(a->GetNodeScoreGivenAssignmentToANode(*this, i, i, label));
+      }
+      for (int label : candidates) {
+        double marginal_probability = exp(a->GetNodeScoreGivenAssignmentToANode(*this, i, i, label)) / normalization_constant;
+        a->GetNeighboringAffectedFeatures(&affected_features, i, label, -learning_rate * marginal_probability);
+      }
+    }
+  }
+
+  a->GetAffectedFeatures(&affected_features, beam_size_ * learning_rate);
+  for (auto it = affected_features.begin(); it != affected_features.end(); ++it) {
+    if (it->second < -1e-9 || it->second > 1e-9) {
+      auto features_it = features_.find(it->first);
+      if (features_it != features_.end()) {
+        features_it->second.atomicAddRegularized(it->second, 0, regularizer_);
+     }
     }
   }
 }

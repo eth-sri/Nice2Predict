@@ -91,8 +91,14 @@ public:
   // Gets the score of a given assignment.
   virtual double GetAssignmentScore(const Nice2Assignment* assignment) const = 0;
 
+  // Method containing common initializations between the different learning algorithms
+  virtual void InitializeFeatureWeights(double regularization) = 0;
+
   // Initializes SSVM learning.
-  virtual void SSVMInit(double regularization, double margin) = 0;
+  virtual void SSVMInit(double margin) = 0;
+
+  // Initializes PL learning
+  virtual void PLInit(int beam_size) = 0;
 
   // Train on a single query + assignment of properties.
   // PrepareForInference and SSVMInit must have been called before SSVMLearn.
@@ -104,6 +110,13 @@ public:
       const Nice2Assignment* assignment,
       double learning_rate,
       PrecisionStats* stats) = 0;
+
+
+  // This method executes a training based on the optimization of the pseudolikelihood
+  virtual void PLLearn(
+      const Nice2Query* query,
+      const Nice2Assignment* assignment,
+      double learning_rate) = 0;
 
   // All queries that a SSVM should learn from must be given first with AddQueryToModel.
   // This is to ensure all the relevant features are added to the model.

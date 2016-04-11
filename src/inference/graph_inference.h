@@ -84,7 +84,17 @@ public:
 
   virtual double GetAssignmentScore(const Nice2Assignment* assignment) const override;
 
-  virtual void SSVMInit(double regularization, double margin) override;
+  virtual void UpdateStats(
+      const GraphNodeAssignment& assignment,
+      const GraphNodeAssignment& new_assignment,
+      PrecisionStats *stats,
+      const double margin);
+
+  virtual void InitializeFeatureWeights(double regularization) override;
+
+  virtual void SSVMInit(double margin) override;
+
+  virtual void PLInit(int beam_size) override;
 
   // This method is thread-safe for Hogwild training. i.e. two instance of SSVMLearn can be
   // called in parallel, but they cannot be called in parallel with other method.
@@ -93,6 +103,12 @@ public:
       const Nice2Assignment* assignment,
       double learning_rate,
       PrecisionStats* stats) override;
+
+  // This method executes a training based on the optimization of the pseudolikelihood
+  virtual void PLLearn(
+      const Nice2Query* query,
+      const Nice2Assignment* assignment,
+      double learning_rate) override;
 
   virtual void AddQueryToModel(const Json::Value& query, const Json::Value& assignment) override;
   virtual void PrepareForInference() override;
@@ -125,9 +141,9 @@ private:
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   StringSet strings_;
   LabelChecker label_checker_;
-  double svm_regularizer_;
+  double regularizer_;
   double svm_margin_;
-
+  int beam_size_;
   int num_svm_training_samples_;
 };
 
