@@ -27,9 +27,12 @@
 #include "graph_inference.h"
 #include "server_log.h"
 #include "inference.h"
+#include "readerutil.h"
 
 DEFINE_string(model, "model", "Input model files");
 DEFINE_string(model_version, "", "Version of the current model");
+
+DEFINE_string(input, "", "Input JSON file");
 
 DEFINE_string(logfile_prefix, "", "File where to log all requests and responses");
 
@@ -117,7 +120,11 @@ public:
     query->FromJSON(request["query"]);
     std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
     assignment->FromJSON(request["assign"]);
+    assignment->PrintInferredAssignments();
+    LOG(INFO) << "Running inference";
     inference_.MapInference(query.get(), assignment.get());
+    LOG(INFO) << "Inference finished";
+    assignment->PrintInferredAssignments();
     assignment->ToJSON(&response);
 
     MaybeLogQuery("infer", request, response);
@@ -133,6 +140,7 @@ public:
     std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
     assignment->FromJSON(request["assign"]);
     inference_.MapInference(query.get(), assignment.get());
+    assignment->PrintInferredAssignments();
     assignment->ToJSON(&response);
 
     MaybeLogQuery("nbest", request, response);
@@ -169,8 +177,20 @@ Nice2Server::~Nice2Server() {
 void Nice2Server::Listen() {
   internal_->StartListening();
   LOG(INFO) << "Nice2Server started.";
-  for (;;) {
-    sleep(1);
-  }
+  std::unique_ptr<RecordInput> input(new ShuffledCacheInput(new FileRecordInput(FLAGS_input)));
+  std::unique_ptr<InputRecordReader> reader(input->CreateReader());
+  std::string line;
+  reader->Read(&line);
+  Json::Reader jsonreader;
+  Json::Value request;
+  Json::Value response;
+  jsonreader.parse(line, request, false);
+  internal_->infer(request, response);
+  Json::FastWriter writer;
+  std::string response_str = writer.write(response);
+  LOG(INFO) << std::fixed << response_str;
+ // for (;;) {
+ //   sleep(1);
+ // }
   internal_->StopListening();
 }
