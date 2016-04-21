@@ -48,6 +48,9 @@ DEFINE_string(unknown_label,
 DEFINE_int32(min_freq_known_label, 0,
     "Minimum number of graphs a label must appear it in order to not be declared unknown");
 
+DEFINE_bool(use_factors, false, "Include in the inference the bigger factors contained in the JSON");
+DEFINE_bool(use_order_for_factors, false, "Order matters in factors");
+
 static const size_t kInitialAssignmentBeamSize = 4;
 
 static const size_t kStartPerArcBeamSize = 4;
@@ -125,6 +128,7 @@ public:
 
   virtual void FromJSON(const Json::Value& query) override {
     arcs_.clear();
+    factors_.clear();
 
     CHECK(query.isArray());
     for (const Json::Value& arc : query) {
@@ -151,9 +155,24 @@ public:
           nodes_in_scope_.push_back(std::move(scope_vars));
         }
       }
+      if (FLAGS_use_factors == true) {
+        if (arc.isMember("group")) {
+          const Json::Value& v = arc["group"];
+          if (v.isArray()) {
+            std::vector<int> factor_vars;
+            factor_vars.reserve(v.size());
+            for (const Json::Value& item : v) {
+              factor_vars.push_back(numberer_.ValueToNumber(item));
+            }
+            if (FLAGS_use_order_for_factors == false) {
+              std::sort(factor_vars.begin(), factor_vars.end());
+            }
+            factors_.push_back(factor_vars);
+          }
+        }
+      }
     }
     std::sort(arcs_.begin(), arcs_.end());
-
     arcs_adjacent_to_node_.assign(numberer_.size(), std::vector<Arc>());
     for (const Arc& a : arcs_) {
       arcs_adjacent_to_node_[a.node_a].push_back(a);
@@ -176,6 +195,13 @@ public:
         scopes_per_nodes_[node].push_back(scope);
       }
     }
+
+    factors_of_a_node_.assign(numberer_.size(), std::vector<Factor>());
+    for (int i = 0; i < factors_.size(); i++) {
+      for (int j = 0; j < factors_[i].size(); j++) {
+        factors_of_a_node_[factors_[i][j]].push_back(factors_[i]);
+      }
+    }
   }
 
 private:
@@ -191,8 +217,11 @@ private:
     }
   };
 
+  typedef std::vector<int> Factor;
   std::vector<std::vector<Arc> > arcs_adjacent_to_node_;
+  std::vector<std::vector<Factor> > factors_of_a_node_;
   std::vector<Arc> arcs_;
+  std::vector<Factor> factors_;
   google::dense_hash_map<IntPair, std::vector<Arc> > arcs_connecting_node_pair_;
   JsonValueNumberer numberer_;
 
@@ -252,6 +281,16 @@ public:
     }
   }
 
+  virtual void PrintInferredAssignments() override {
+    LOG(INFO) << assignments_.size();
+    for(int i = 0; i < assignments_.size(); i++) {
+      const Assignment a = assignments_[i];
+      if (a.must_infer == true) {
+        LOG(INFO) << "Variable number: " << std::fixed << i << " Label: " << std::fixed << label_set_->GetLabelName(a.label);
+      }
+    }
+  }
+
   virtual void ClearPenalty() override {
     penalties_.assign(assignments_.size(), LabelPenalty());
   }
@@ -274,6 +313,7 @@ public:
         assignments_[number] = aset;
       }
     }
+
     ClearPenalty();
   }
 
@@ -371,6 +411,7 @@ public:
          sum += feature_it->second.getValue();
        }
      }
+    // TODO sum also over all factors containing that node (maybe create also field containing factors of a node)
      return sum;
   }
 
@@ -542,6 +583,7 @@ public:
 #endif
     std::sort(candidates->begin(), candidates->end());
     candidates->erase(std::unique(candidates->begin(), candidates->end()), candidates->end());
+
   }
 
   void ReplaceLabelsWithUnknown(const GraphInference& fweights) {
@@ -585,6 +627,8 @@ public:
       (*affected_features)[feature] += gradient_weight;
     }
   }
+
+  // TODO create method GetAffectedFactorFeatures
 
   // Method that given a certain node and a label, first assign that label to the given node and then add the gradient_weight
   // to every affected feature related to the given node and its neighbours
@@ -1175,6 +1219,7 @@ void GraphInference::UpdateStats(
         ++correct_labels;
       } else {
         ++incorrect_labels;
+        LOG(INFO) << "Incorrect label: " << i;
       }
     }
   }
@@ -1198,6 +1243,9 @@ void GraphInference::InitializeFeatureWeights(double regularization) {
   regularizer_ = 1 / regularization;
   for (auto it = features_.begin(); it != features_.end(); ++it) {
      it->second.setValue(regularizer_ * 0.5);
+  }
+  for (auto it = factor_features_.begin(); it != factor_features_.end(); it++) {
+    it->second = regularizer_ * 0.5;
   }
 }
 
@@ -1343,6 +1391,7 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
   for (int value : unique_values) {
     ++label_frequency_[value];
   }
+
   for (const Json::Value& arc : query) {
     if (arc.isMember("f2")) {
       GraphFeature feature(
@@ -1353,7 +1402,74 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
         features_[feature].nonAtomicAdd(1);
       }
     }
+
+    if (FLAGS_use_factors == true) {
+      if (arc.isMember("group")) {
+        const Json::Value& v = arc["group"];
+        if (v.isArray()) {
+          std::vector<int> factor_vars;
+          factor_vars.reserve(v.size());
+          for (const Json::Value& item : v) {
+            factor_vars.push_back(numb.ValueToNumber(item));
+          }
+          if (FLAGS_use_order_for_factors == false) {
+            std::sort(factor_vars.begin(), factor_vars.end());
+          }
+
+          // try to see if there is already a factor with the same variables
+          int index = FindFactorFeature(factor_vars);
+          if (index == -1) {
+            FactorFeature factor_feature;
+            factor_feature.first = factor_vars;
+            factor_feature.second += 1;
+            factor_features_.push_back(factor_feature);
+          } else {
+            factor_features_[index].second += 1;
+          }
+        }
+      }
+    }
   }
+  PrintAllFeatures();
+}
+
+void GraphInference::PrintAllFeatures() {
+  LOG(INFO) << "Pairwise features";
+  for (auto it = features_.begin(); it != features_.end(); it++) {
+    LOG(INFO) << "A " << it->first.a_ << " B " << it->first.b_ << " type " << it->first.type_ << " weight " << it->second.getValue();
+  }
+
+  LOG(INFO) << "Factor features";
+  for (auto f = factor_features_.begin(); f != factor_features_.end(); f++) {
+    LOG(INFO) << "Vars: ";
+    for (auto i = f->first.begin(); i != f->first.end(); i++) {
+      LOG(INFO) << (*i);
+    }
+    LOG(INFO) << "Weight " << f->second;
+  }
+}
+
+int GraphInference::FindFactorFeature(std::vector<int> factor) {
+  int factor_index = -1;
+  for (int i = 0; i < factor_features_.size(); i++) {
+    std::vector<int> f = factor_features_[i].first;
+    if (factor.size() != f.size()) {
+      continue;
+    }
+    bool equals = true;
+    for (int j = 0; j < factor.size(); j++) {
+      if (factor[j] != f[j]) {
+        equals = false;
+        break;
+      }
+    }
+    if (equals == true) {
+      factor_index = i;
+      break;
+    }
+
+  }
+  return factor_index;
 }
 
 void GraphInference::PrepareForInference() {

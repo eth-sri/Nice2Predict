@@ -74,6 +74,9 @@ public:
   virtual void CompareAssignments(const Nice2Assignment* reference, PrecisionStats* stats) const = 0;
   // Compare two assignments and return the label errors observed in them.
   virtual void CompareAssignmentErrors(const Nice2Assignment* reference, SingleLabelErrorStats* error_stats) const = 0;
+
+  // Print assignments
+  virtual void PrintInferredAssignments() = 0;
 };
 
 
