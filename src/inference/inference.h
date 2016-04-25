@@ -133,7 +133,6 @@ public:
   // Must be called [at least] once before calling SSVMLearn or MapInference.
   virtual void PrepareForInference() = 0;
 
-
   // DEBUG methods.
   // Given a query and an assignment, return a graph to visualize the query.
   virtual void DisplayGraph(

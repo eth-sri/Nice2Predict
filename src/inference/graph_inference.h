@@ -131,19 +131,19 @@ private:
 
   void PerformAssignmentOptimization(GraphNodeAssignment* a) const;
   void PrintAllFeatures();
-  int FindFactorFeature(std::vector<int> factor);
 
   typedef google::dense_hash_map<GraphFeature, LockFreeWeights> FeaturesMap;
   typedef google::dense_hash_map<GraphFeature, double> SimpleFeaturesMap;
-  typedef std::pair<std::vector<int>, double> FactorFeature;
-  typedef std::vector<FactorFeature> FactorFeaturesVector;
+  typedef std::unordered_map<std::vector<int>, double> FactorFeaturesMap;
+
 
   // std::unordered_map<GraphFeature, double> features_;
   FeaturesMap features_;
-  FactorFeaturesVector factor_features_;
+  FactorFeaturesMap factor_features_;
 
   //google::dense_hash_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
+  std::unordered_map<std::vector<int>, std::vector<std::pair<double, int>>> best_factor_features_;
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   google::dense_hash_map<int, int> label_frequency_;
   int unknown_label_;
