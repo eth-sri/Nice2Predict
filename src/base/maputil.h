@@ -60,5 +60,28 @@ namespace std {
   };
 }
 
+namespace std { namespace tr1 {
+  template <> struct hash<std::vector<int>> {
+    size_t operator()(const std::vector<int>& x) const {
+      int hc = x.size();
+      for (unsigned int i = 0; i < x.size(); i++) {
+        hc = hc * 6037 + x[i];
+      }
+      return hc;
+    }
+  };
+}}
+
+namespace std {
+  template <> struct hash<std::vector<int>> {
+    size_t operator()(const std::vector<int>& x) const {
+      int hc = x.size();
+      for (unsigned int i = 0; i < x.size(); i++) {
+        hc = hc * 6037 + x[i];
+      }
+      return hc;
+    }
+  };
+}
 
 #endif /* BASE_MAPUTIL_H_ */
