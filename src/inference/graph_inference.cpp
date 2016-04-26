@@ -656,6 +656,7 @@ public:
       for (int i = 0; i < factor.size(); i++) {
         f.push_back(assignments_[factor[i]].label);
       }
+      std::sort(f.begin(), f.end());
       (*affected_factor_features)[f] += gradient_weight;
     }
   }
@@ -680,6 +681,23 @@ public:
           label_node_b,
           arc.type);
       (*affected_features)[feature] += gradient_weight;
+    }
+  }
+
+  void GetFactorAffectedFeaturesOfNode(
+      GraphInference::FactorFeaturesMap* factor_affected_features,
+      int node,
+      int label,
+      double gradient_weight) const {
+    int node_label = label;
+    for (const GraphQuery::Factor& f : query_->factors_of_a_node_[node]) {
+      GraphQuery::Factor factor;
+      factor.push_back(node_label);
+      for (int i = 0; i < f.size(); i++) {
+        factor.push_back(assignments_[f[i]].label);
+      }
+      std::sort(factor.begin(), factor.end());
+      (*factor_affected_features)[factor] += gradient_weight;
     }
   }
 
@@ -1325,6 +1343,8 @@ void GraphInference::PLLearn(
   affected_features.set_empty_key(GraphFeature(-1, -1, -1));
   affected_features.set_deleted_key(GraphFeature(-2, -2, -2));
 
+  FactorFeaturesMap factor_affected_features;
+
   for (unsigned int i = 0; i < a->assignments_.size(); i++) {
     if (a->assignments_[i].must_infer) {
       std::vector<int> candidates;
@@ -1339,11 +1359,13 @@ void GraphInference::PLLearn(
       for (int label : candidates) {
         double marginal_probability = exp(a->GetNodeScoreGivenAssignmentToANode(*this, i, i, label)) / normalization_constant;
         a->GetNeighboringAffectedFeatures(&affected_features, i, label, -learning_rate * marginal_probability);
+        a->GetFactorAffectedFeaturesOfNode(&factor_affected_features, i, label, -learning_rate * marginal_probability);
       }
     }
   }
 
   a->GetAffectedFeatures(&affected_features, beam_size_ * learning_rate);
+  a->GetAffectedFactorFeatures(&factor_affected_features, beam_size_ * learning_rate);
   for (auto it = affected_features.begin(); it != affected_features.end(); ++it) {
     if (it->second < -1e-9 || it->second > 1e-9) {
       auto features_it = features_.find(it->first);
@@ -1352,6 +1374,18 @@ void GraphInference::PLLearn(
      }
     }
   }
+
+  for (auto f_feature = factor_affected_features.begin(); f_feature != factor_affected_features.end(); f_feature++) {
+      if (f_feature->second < -1e-9 || f_feature->second > 1e-9) {
+        auto factor_feature = factor_features_.find(f_feature->first);
+        if (factor_feature != factor_features_.end()) {
+          factor_feature->second += f_feature->second;
+          // L_inf regularize the new value.
+          if (factor_feature->second < 0) factor_feature->second = 0;
+          if (factor_feature->second > regularizer_) factor_feature->second = regularizer_;
+        }
+      }
+    }
 }
 
 void GraphInference::DisplayGraph(
