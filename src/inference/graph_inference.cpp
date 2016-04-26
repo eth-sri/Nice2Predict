@@ -32,6 +32,8 @@
 
 #include "label_set.h"
 
+#define DEBUG
+
 DEFINE_bool(initial_greedy_assignment_pass, true, "Whether to run an initial greedy assignment pass.");
 DEFINE_bool(duplicate_name_resolution, true, "Whether to attempt a duplicate name resultion on conflicts.");
 DEFINE_int32(graph_per_node_passes, 8, "Number of per-node passes for inference");
@@ -418,14 +420,19 @@ public:
         factor.push_back(assignments_[query_->factors_of_a_node_[node][i][j]].label);
       }
       std::sort(factor.begin(), factor.end());
+
+#ifdef DEBUG
       LOG(INFO) << "Looking for factor_feature: ";
       for (int k = 0; k < factor.size(); k++) {
         LOG(INFO) << factor[k];
       }
+#endif
 
       auto factor_feature = factor_features.find(factor);
       if (factor_feature != factor_features.end()) {
+#ifdef DEBUG
         LOG(INFO) << "Factor feature found";
+#endif
         sum += factor_feature->second;
       }
     }
@@ -471,13 +478,17 @@ public:
         factor.push_back(assignments_[query_->factors_of_a_node_[node][i][j]].label);
       }
       std::sort(factor.begin(), factor.end());
+#ifdef DEBUG
       LOG(INFO) << "Looking for factor_feature: ";
       for (int k = 0; k < factor.size(); k++) {
         LOG(INFO) << factor[k];
       }
+#endif
       auto factor_feature = factor_features.find(factor);
       if (factor_feature != factor_features.end()) {
+#ifdef DEBUG
         LOG(INFO) << "Factor feature found";
+#endif
         sum += factor_feature->second;
       }
     }
@@ -593,13 +604,15 @@ public:
       }
       std::sort(f_with_assignments.begin(), f_with_assignments.end());
       const std::vector<std::pair<double, int>>& v = FindWithDefault(fweights.best_factor_features_, f_with_assignments, empty_vec);
+#ifdef DEBUG
       LOG(INFO) << "Factor: ";
       for (int j = 0; j < f_with_assignments.size(); j++) {
         LOG(INFO) << f_with_assignments[j];
       }
       LOG(INFO) << "v size: " << v.size();
+#endif
       for (unsigned int j = 0; j < v.size() && j < beam_size; j++) {
-        candidates->push_back(v[i].second);
+        candidates->push_back(v[j].second);
       }
     }
 
@@ -608,10 +621,12 @@ public:
 #endif
     std::sort(candidates->begin(), candidates->end());
     candidates->erase(std::unique(candidates->begin(), candidates->end()), candidates->end());
+#ifdef DEBUG
     LOG(INFO) << "Candidates for " << node << ":";
     for (int i = 0; i < candidates->size(); i++) {
       LOG(INFO) << (*candidates)[i];
     }
+#endif
   }
 
   double GetTotalScore(const GraphInference& fweights) const {
@@ -766,10 +781,16 @@ public:
       int best_position = -1;
 #endif
       for (size_t i = 0; i < candidates.size(); ++i) {
+#ifdef DEBUG
+        LOG(INFO) << "Trying candidate " << i << ": " << candidates[i] << " for node " << node;
+#endif
         nodea.label = candidates[i];
         if (!fweights.label_checker_.IsLabelValid(assignments_[node].label)) continue;
         if (HasDuplicationConflictsAtNode(node)) continue;
         double score = GetNodeScore(fweights, node);
+#ifdef DEBUG
+        LOG(INFO) << "score=" << score << " best_score=" << candidates[i];
+#endif
         if (score > best_score) {
           best_label = nodea.label;
           best_score = score;
@@ -798,6 +819,9 @@ public:
       int best_label = initial_label;
       int best_node2 = -1;
       for (size_t i = 0; i < candidates.size(); ++i) {
+#ifdef DEBUG
+        LOG(INFO) << "Trying candidate " << i << ": " << candidates[i] << " for node " << node;
+#endif
         nodea.label = candidates[i];
         if (!fweights.label_checker_.IsLabelValid(assignments_[node].label)) continue;
         if (HasDuplicationConflictsAtNode(node)) {
@@ -810,6 +834,9 @@ public:
           if (correct) {
             score -= GetNodeScore(fweights, node2);  // The score on node2 is essentially the gain of the score on node2.
             if (score > best_score) {
+#ifdef DEBUG
+        LOG(INFO) << "score=" << score << " best_score=" << candidates[i];
+#endif
               best_label = nodea.label;
               best_score = score;
               best_node2 = node2;
@@ -818,6 +845,9 @@ public:
         } else {
           double score = GetNodeScore(fweights, node);
           if (score > best_score) {
+#ifdef DEBUG
+        LOG(INFO) << "score=" << score << " best_score=" << candidates[i];
+#endif
             best_label = nodea.label;
             best_score = score;
             best_node2 = -1;
@@ -1252,7 +1282,6 @@ void GraphInference::UpdateStats(
         ++correct_labels;
       } else {
         ++incorrect_labels;
-        LOG(INFO) << "Incorrect label: " << i;
       }
     }
   }
@@ -1482,7 +1511,9 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
       }
     }
   }
+#ifdef DEBUG
   PrintAllFeatures();
+#endif
 }
 
 void GraphInference::PrintAllFeatures() {
@@ -1535,11 +1566,13 @@ void GraphInference::PrepareForInference() {
         }
       }
       best_factor_features_[f_key].push_back(std::pair<double, int>(feature_weight, f[j]));
+#ifdef DEBUG
       LOG(INFO) << "f_key";
       for (int ii = 0; ii < f_key.size(); ii++) {
         LOG(INFO) << f_key[ii];
       }
       LOG(INFO) << "Feature weight " << feature_weight << " variable " << f[j];
+#endif
     }
   }
 
