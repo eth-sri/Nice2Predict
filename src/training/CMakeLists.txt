@@ -4,7 +4,7 @@ INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/base)
 INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/inference)
 
 ADD_EXECUTABLE(train train.cpp)
-TARGET_LINK_LIBRARIES(train base inference gflags glog jsoncpp)
+TARGET_LINK_LIBRARIES(train base inference gflags glog jsoncpp pthread)
 
 ADD_EXECUTABLE(eval eval.cpp)
-TARGET_LINK_LIBRARIES(eval base inference gflags glog jsoncpp)
+TARGET_LINK_LIBRARIES(eval base inference gflags glog jsoncpp pthread)
