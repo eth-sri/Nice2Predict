@@ -1363,6 +1363,8 @@ void GraphInference::PrepareForInference() {
     LOG(INFO) << "Replacing rare labels with unknown label " << FLAGS_unknown_label << " ...";
     {
       google::dense_hash_map<int, int> updated_freq;
+      updated_freq.set_empty_key(label_frequency_.empty_key());
+      updated_freq.set_deleted_key(label_frequency_.deleted_key());
       for (auto it = label_frequency_.begin(); it != label_frequency_.end(); ++it) {
         if (it->second >= FLAGS_min_freq_known_label) {
           updated_freq[it->first] = it->second;
@@ -1374,6 +1376,8 @@ void GraphInference::PrepareForInference() {
     }
     {
       FeaturesMap updated_map;
+      updated_map.set_empty_key(features_.empty_key());
+      updated_map.set_deleted_key(features_.deleted_key());
       for (auto it = features_.begin(); it != features_.end(); ++it) {
         GraphFeature f = it->first;
         double feature_weight = it->second.getValue();
