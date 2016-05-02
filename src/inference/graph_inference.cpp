@@ -43,6 +43,10 @@ DEFINE_int32(skip_per_arc_optimization_for_nodes_above_degree, 32,
 
 
 DEFINE_string(valid_labels, "valid_names.txt", "A file describing valid names");
+DEFINE_string(unknown_label,
+    "__UNK__", "A special label that denotes that a label is of low frequency (and thus unknown).");
+DEFINE_int32(min_freq_known_label, 2,
+    "Minimum number of graphs a label must appear it in order to not be declared unknown");
 
 static const size_t kInitialAssignmentBeamSize = 4;
 
@@ -230,7 +234,8 @@ struct GraphInferenceStats {
 
 class GraphNodeAssignment : public Nice2Assignment {
 public:
-  GraphNodeAssignment(const GraphQuery* query, LabelSet* label_set) : query_(query), label_set_(label_set) {
+  GraphNodeAssignment(const GraphQuery* query, LabelSet* label_set, int unknown_label)
+    : query_(query), label_set_(label_set), unknown_label_(unknown_label) {
     assignments_.assign(query_->numberer_.size(), Assignment());
     penalties_.assign(assignments_.size(), LabelPenalty());
   }
@@ -414,6 +419,7 @@ public:
 
   bool HasDuplicationConflictsAtNode(int node) const {
     int node_label = assignments_[node].label;
+    if (node_label == unknown_label_) return false;
     const std::vector<int>& scopes = query_->scopes_per_nodes_[node];
     for (int scope : scopes) {
       const std::vector<int>& nodes_per_scope = query_->nodes_in_scope_[scope];
@@ -530,6 +536,14 @@ public:
 #endif
     std::sort(candidates->begin(), candidates->end());
     candidates->erase(std::unique(candidates->begin(), candidates->end()), candidates->end());
+  }
+
+  void ReplaceLabelsWithUnknown(const GraphInference& fweights) {
+    for (size_t i = 0; i < assignments_.size(); ++i) {
+      if (fweights.label_frequency_.find(assignments_[i].label) == fweights.label_frequency_.end()) {
+        assignments_[i].label = unknown_label_;
+      }
+    }
   }
 
   double GetTotalScore(const GraphInference& fweights) const {
@@ -785,6 +799,7 @@ private:
 
   const GraphQuery* query_;
   LabelSet* label_set_;
+  int unknown_label_;
 
 #ifdef GRAPH_INFERENCE_STATS
   mutable GraphInferenceStats stats_;
@@ -975,12 +990,14 @@ private:
 
 
 
-GraphInference::GraphInference() : regularizer_(1.0), svm_margin_(1e-9), num_svm_training_samples_(0) {
+GraphInference::GraphInference() : unknown_label_(-1), regularizer_(1.0), svm_margin_(1e-9), beam_size_(0), num_svm_training_samples_(0) {
   // Initialize dense_hash_map.
   features_.set_empty_key(GraphFeature(-1, -1, -1));
   features_.set_deleted_key(GraphFeature(-2, -2, -2));
   best_features_for_type_.set_empty_key(-1);
   best_features_for_type_.set_deleted_key(-2);
+  label_frequency_.set_empty_key(-1);
+  label_frequency_.set_deleted_key(-2);
 }
 
 GraphInference::~GraphInference() {
@@ -1006,6 +1023,21 @@ void GraphInference::LoadModel(const std::string& file_prefix) {
   FILE* sfile = fopen(StringPrintf("%s_strings", file_prefix.c_str()).c_str(), "rb");
   strings_.loadFromFile(sfile);
   fclose(sfile);
+
+  if (!FLAGS_unknown_label.empty()) {
+    int a, b, size;
+    label_frequency_.clear();
+    FILE* lffile = fopen(StringPrintf("%s_lfreq", file_prefix.c_str()).c_str(), "rb");
+    CHECK_EQ(1, fread(&size, sizeof(int), 1, lffile) != 1);
+    for (int i = 0; i < size; ++i) {
+      CHECK_EQ(1, fread(&a, sizeof(int), 1, lffile) != 1);
+      CHECK_EQ(1, fread(&b, sizeof(int), 1, lffile) != 1);
+      label_frequency_[a] = b;
+    }
+    CHECK_EQ(static_cast<int>(label_frequency_.size()), size);
+    fclose(lffile);
+  }
+
   LOG(INFO) << "Loading model done";
 
   PrepareForInference();
@@ -1026,6 +1058,21 @@ void GraphInference::SaveModel(const std::string& file_prefix) {
   FILE* sfile = fopen(StringPrintf("%s_strings", file_prefix.c_str()).c_str(), "wb");
   strings_.saveToFile(sfile);
   fclose(sfile);
+
+  if (!FLAGS_unknown_label.empty()) {
+    int x;
+    FILE* lffile = fopen(StringPrintf("%s_lfreq", file_prefix.c_str()).c_str(), "wb");
+    x = label_frequency_.size();
+    fwrite(&x, sizeof(int), 1, lffile);
+    for (auto it = label_frequency_.begin(); it != label_frequency_.end(); ++it) {
+      x = it->first;
+      fwrite(&x, sizeof(int), 1, lffile);
+      x = it->second;
+      fwrite(&x, sizeof(int), 1, lffile);
+    }
+    fclose(lffile);
+  }
+
   LOG(INFO) << "Saving model done";
 }
 
@@ -1034,9 +1081,12 @@ Nice2Query* GraphInference::CreateQuery() const {
 }
 Nice2Assignment* GraphInference::CreateAssignment(Nice2Query* query) const {
   GraphQuery* q = static_cast<GraphQuery*>(query);
-  return new GraphNodeAssignment(q, &q->label_set_);
+  return new GraphNodeAssignment(q, &q->label_set_, unknown_label_);
 }
 void GraphInference::PerformAssignmentOptimization(GraphNodeAssignment* a) const {
+  if (unknown_label_ >= 0) {
+    a->ReplaceLabelsWithUnknown(*this);
+  }
   double score = a->GetTotalScore(*this);
   VLOG(1) << "Start score " << score;
   if (FLAGS_initial_greedy_assignment_pass) {
@@ -1108,10 +1158,14 @@ void GraphInference::UpdateStats(
     PrecisionStats *stats,
     const double margin) {
 
-  int correct_labels = 0, incorrect_labels = 0;
+  int correct_labels = 0, incorrect_labels = 0, num_known_predictions = 0;
   for (size_t i = 0; i < new_assignment.assignments_.size(); ++i) {
     if (new_assignment.assignments_[i].must_infer) {
-      if (new_assignment.assignments_[i].label == assignment.assignments_[i].label) {
+      if (new_assignment.assignments_[i].label != unknown_label_) {
+        ++num_known_predictions;
+      }
+      if (new_assignment.assignments_[i].label == assignment.assignments_[i].label &&
+          new_assignment.assignments_[i].label != unknown_label_) {
         ++correct_labels;
       } else {
         ++incorrect_labels;
@@ -1122,10 +1176,13 @@ void GraphInference::UpdateStats(
     std::lock_guard<std::mutex> guard(stats->lock);
     stats->correct_labels += correct_labels;
     stats->incorrect_labels += incorrect_labels;
+    stats->num_known_predictions += num_known_predictions;
     ++num_svm_training_samples_;
     if (num_svm_training_samples_ % 10000 == 0) {
       double error_rate = stats->incorrect_labels / (static_cast<double>(stats->incorrect_labels + stats->correct_labels));
-      LOG(INFO) << "At training sample " << num_svm_training_samples_ << ": error rate of " << std::fixed << error_rate;
+      double recall = stats->num_known_predictions / (static_cast<double>(stats->incorrect_labels + stats->correct_labels));
+      LOG(INFO) << "At training sample " << num_svm_training_samples_ << ": error rate of " << std::fixed << error_rate
+          << " . Recall " << std::fixed << recall;
     }
   }
 
@@ -1181,6 +1238,7 @@ void GraphInference::PLLearn(
     const Nice2Query* query,
     const Nice2Assignment* assignment,
     double learning_rate) {
+  CHECK_GT(beam_size_, 0) << "PLInit not called or beam size was set to an invalid value.";
   const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
 
   // Perform gradient descent
@@ -1264,6 +1322,7 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
   CHECK(assignment.isArray());
   JsonValueNumberer numb;
   std::unordered_map<int, int> values;
+  std::set<int> unique_values;
   for (const Json::Value& a : assignment) {
     int value;
     if (a.isMember("inf")) {
@@ -1273,6 +1332,10 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
       value = strings_.addString(a.get("giv", Json::Value::null).asCString());
     }
     values[numb.ValueToNumber(a.get("v", Json::Value::null))] = value;
+    unique_values.insert(value);
+  }
+  for (int value : unique_values) {
+    ++label_frequency_[value];
   }
   for (const Json::Value& arc : query) {
     if (arc.isMember("f2")) {
@@ -1288,10 +1351,44 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
 }
 
 void GraphInference::PrepareForInference() {
+  if (!FLAGS_unknown_label.empty()) {
+    unknown_label_ = strings_.addString(FLAGS_unknown_label.c_str());
+  }
   if (!label_checker_.IsLoaded()) {
     LOG(INFO) << "Loading LabelChecker...";
     label_checker_.Load(FLAGS_valid_labels, &strings_);
     LOG(INFO) << "LabelChecker loaded";
+  }
+  if (FLAGS_min_freq_known_label > 0) {
+    LOG(INFO) << "Replacing rare labels with unknown label " << FLAGS_unknown_label << " ...";
+    {
+      google::dense_hash_map<int, int> updated_freq;
+      for (auto it = label_frequency_.begin(); it != label_frequency_.end(); ++it) {
+        if (it->second >= FLAGS_min_freq_known_label) {
+          updated_freq[it->first] = it->second;
+        }
+      }
+      LOG(INFO) << "Removed " << (label_frequency_.size() - updated_freq.size())
+          << " low frequency labels out of " << label_frequency_.size() << " labels.";
+      label_frequency_.swap(updated_freq);
+    }
+    {
+      FeaturesMap updated_map;
+      for (auto it = features_.begin(); it != features_.end(); ++it) {
+        GraphFeature f = it->first;
+        double feature_weight = it->second.getValue();
+        if (label_frequency_.find(f.a_) == label_frequency_.end()) {
+          f.a_ = unknown_label_;
+        }
+        if (label_frequency_.find(f.b_) == label_frequency_.end()) {
+          f.b_ = unknown_label_;
+        }
+        updated_map[f].nonAtomicAdd(feature_weight);
+      }
+      LOG(INFO) << "Removed " << (features_.size() - updated_map.size())
+          << " out of " << features_.size() << " features.";
+      features_.swap(updated_map);
+    }
   }
   num_svm_training_samples_ = 0;
 

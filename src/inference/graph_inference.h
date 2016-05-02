@@ -139,6 +139,8 @@ private:
   //google::dense_hash_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
+  google::dense_hash_map<int, int> label_frequency_;
+  int unknown_label_;
   StringSet strings_;
   LabelChecker label_checker_;
   double regularizer_;

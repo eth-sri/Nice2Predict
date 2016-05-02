@@ -297,6 +297,7 @@ void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
 
 
   LOG(INFO) << "Correct " << stats.correct_labels << " vs " << stats.incorrect_labels << " incorrect labels";
+  LOG(INFO) << "Made prediction that were not unknown for " << stats.num_known_predictions << " labels";
   double error_rate = stats.incorrect_labels / (static_cast<double>(stats.incorrect_labels + stats.correct_labels));
   LOG(INFO) << "Error rate of " << std::fixed << error_rate;
 
@@ -338,6 +339,7 @@ int main(int argc, char** argv) {
     LOG(INFO) << "========================================";
     LOG(INFO) << "Cross-validation done";
     LOG(INFO) << "Correct " << total_stats.correct_labels << " vs " << total_stats.incorrect_labels << " incorrect labels for the whole dataset";
+    LOG(INFO) << "Made prediction that were not unknown for " << total_stats.num_known_predictions << " labels";
     double error_rate = total_stats.incorrect_labels / (static_cast<double>(total_stats.incorrect_labels + total_stats.correct_labels));
     LOG(INFO) << "Error rate of " << std::fixed << error_rate;
   } else if (FLAGS_print_confusion) {
