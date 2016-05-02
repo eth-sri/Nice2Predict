@@ -306,9 +306,14 @@ public:
     const GraphNodeAssignment* ref = static_cast<const GraphNodeAssignment*>(reference);
     int correct_labels = 0;
     int incorrect_labels = 0;
+    int num_known_predictions = 0;
     for (size_t i = 0; i < assignments_.size(); ++i) {
       if (assignments_[i].must_infer) {
-        if (assignments_[i].label == ref->assignments_[i].label) {
+        if (assignments_[i].label != unknown_label_) {
+          ++num_known_predictions;
+        }
+        if (assignments_[i].label == ref->assignments_[i].label &&
+            assignments_[i].label != unknown_label_) {
           ++correct_labels;
         } else {
           ++incorrect_labels;
@@ -318,6 +323,7 @@ public:
     std::lock_guard<std::mutex> guard(stats->lock);
     stats->correct_labels += correct_labels;
     stats->incorrect_labels += incorrect_labels;
+    stats->num_known_predictions += num_known_predictions;
   }
 
   virtual void CompareAssignmentErrors(const Nice2Assignment* reference, SingleLabelErrorStats* error_stats) const override {
