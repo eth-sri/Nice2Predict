@@ -125,6 +125,8 @@ public:
       const Nice2Assignment* assignment,
       NodeConfusionStats* stats);
 
+  typedef std::set<int> Factor;
+
 private:
   friend class GraphNodeAssignment;
   friend class LoopyBPInference;
@@ -134,7 +136,7 @@ private:
 
   typedef google::dense_hash_map<GraphFeature, LockFreeWeights> FeaturesMap;
   typedef google::dense_hash_map<GraphFeature, double> SimpleFeaturesMap;
-  typedef std::unordered_map<std::vector<int>, double> FactorFeaturesMap;
+  typedef std::unordered_map<Factor, double> FactorFeaturesMap;
 
 
   // std::unordered_map<GraphFeature, double> features_;
@@ -143,7 +145,8 @@ private:
 
   //google::dense_hash_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
-  std::unordered_map<std::vector<int>, std::vector<std::pair<double, int>>> best_factor_features_;
+  std::unordered_map<Factor, std::vector<std::pair<double, int>>> best_factor_features_;
+  std::unordered_map<int, std::vector<std::pair<double, Factor>>> best_factor_features_for_factor_size_;
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   google::dense_hash_map<int, int> label_frequency_;
   int unknown_label_;

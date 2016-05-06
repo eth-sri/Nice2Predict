@@ -14,6 +14,8 @@
    limitations under the License.
  */
 
+#include <set>
+
 #ifndef BASE_MAPUTIL_H_
 #define BASE_MAPUTIL_H_
 
@@ -41,6 +43,20 @@ struct IntPair {
   }
 
   int first;
+  int second;
+};
+
+// A data structure containing a pair of Vector of integers and int
+
+struct VectorIntPair {
+  VectorIntPair() : first(std::vector<int>()), second(0) {}
+  VectorIntPair(std::vector<int> a, int b) : first(a), second(b) {}
+
+  bool operator==(const VectorIntPair& o) const {
+    return first == o.first && second == o.second;
+  }
+
+  std::vector<int> first;
   int second;
 };
 
@@ -79,6 +95,32 @@ namespace std {
       for (unsigned int i = 0; i < x.size(); i++) {
         hc = hc * 6037 + x[i];
       }
+      return hc;
+    }
+  };
+}
+
+namespace std {
+  template <> struct hash<std::set<int>> {
+    size_t operator()(const std::set<int>& x) const {
+      int hc = x.size();
+      for (auto var = x.begin(); var != x.end(); var++) {
+        hc = hc * 6037 + *var;
+      }
+      return hc;
+    }
+  };
+}
+
+namespace std {
+  template <> struct hash<VectorIntPair> {
+    size_t operator()(const VectorIntPair& x) const {
+      int hc = x.first.size();
+      for (unsigned int i = 0; i < x.first.size(); i++) {
+        hc = hc * 6037 + x.first[i];
+      }
+      hc *= 6037;
+      hc += x.second;
       return hc;
     }
   };
