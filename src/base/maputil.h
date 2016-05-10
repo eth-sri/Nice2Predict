@@ -46,20 +46,6 @@ struct IntPair {
   int second;
 };
 
-// A data structure containing a pair of Vector of integers and int
-
-struct VectorIntPair {
-  VectorIntPair() : first(std::vector<int>()), second(0) {}
-  VectorIntPair(std::vector<int> a, int b) : first(a), second(b) {}
-
-  bool operator==(const VectorIntPair& o) const {
-    return first == o.first && second == o.second;
-  }
-
-  std::vector<int> first;
-  int second;
-};
-
 namespace std { namespace tr1 {
   template <> struct hash<IntPair> {
     size_t operator()(const IntPair& x) const {
@@ -75,18 +61,6 @@ namespace std {
     }
   };
 }
-
-namespace std { namespace tr1 {
-  template <> struct hash<std::vector<int>> {
-    size_t operator()(const std::vector<int>& x) const {
-      int hc = x.size();
-      for (unsigned int i = 0; i < x.size(); i++) {
-        hc = hc * 6037 + x[i];
-      }
-      return hc;
-    }
-  };
-}}
 
 namespace std {
   template <> struct hash<std::vector<int>> {
@@ -112,18 +86,16 @@ namespace std {
   };
 }
 
-namespace std {
-  template <> struct hash<VectorIntPair> {
-    size_t operator()(const VectorIntPair& x) const {
-      int hc = x.first.size();
-      for (unsigned int i = 0; i < x.first.size(); i++) {
-        hc = hc * 6037 + x.first[i];
+namespace std { namespace tr1 {
+  template <> struct hash<std::set<int>> {
+    size_t operator()(const std::set<int>& x) const {
+      int hc = x.size();
+      for (auto var = x.begin(); var != x.end(); var++) {
+        hc = hc * 6037 + *var;
       }
-      hc *= 6037;
-      hc += x.second;
       return hc;
     }
   };
-}
+}}
 
 #endif /* BASE_MAPUTIL_H_ */

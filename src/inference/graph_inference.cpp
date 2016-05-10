@@ -20,6 +20,9 @@
 #include <math.h>
 #include <queue>
 #include <unordered_set>
+#include <algorithm>
+#include <random>
+#include <iterator>
 
 #include "stringprintf.h"
 #include "glog/logging.h"
@@ -44,6 +47,8 @@ DEFINE_int32(graph_loopy_bp_steps_per_pass, 3, "Number of loopy belief propagati
 DEFINE_int32(skip_per_arc_optimization_for_nodes_above_degree, 32,
     "Skip the per-arc optimization pass if an edge is connected to a node with the in+out degree more than the given value");
 
+DEFINE_int32(factors_limit, 64, "Factors limit before which stop to go deeper");
+DEFINE_int32(permutations_beam_size, 64, "Permutations beam size");
 
 DEFINE_string(valid_labels, "valid_names.txt", "A file describing valid names");
 
@@ -58,7 +63,7 @@ static const size_t kStartPerNodeBeamSize = 4;
 static const size_t kMaxPerNodeBeamSize = 64;
 static const size_t kLoopyBPBeamSize = 32;
 
-static const size_t kFactorsBeamSize = 64;
+static const size_t kMaximumFactorSizeCalculateFactorial = 64;
 
 namespace std {
   template <> struct hash<Json::Value> {
@@ -193,7 +198,7 @@ public:
     }
 
     factors_of_a_node_.assign(numberer_.size(), std::vector<GraphInference::Factor>());
-    for (unsigned int i = 0; i < factors_.size(); i++) {
+    for (uint i = 0; i < factors_.size(); i++) {
       for (auto var = factors_[i].begin(); var != factors_[i].end(); var++) {
         GraphInference::Factor f;
         for (auto v = factors_[i].begin(); v != factors_[i].end(); v++) {
@@ -283,7 +288,7 @@ public:
 
   virtual void PrintInferredAssignments() override {
     LOG(INFO) << assignments_.size();
-    for(unsigned int i = 0; i < assignments_.size(); i++) {
+    for(uint i = 0; i < assignments_.size(); i++) {
       const Assignment a = assignments_[i];
       if (a.must_infer == true) {
         LOG(INFO) << "Variable number: " << std::fixed << i << " Label: " << std::fixed << label_set_->GetLabelName(a.label);
@@ -394,6 +399,9 @@ public:
   // Gets the score contributed by all arcs adjacent to a node.
   double GetNodeScore(const GraphInference& fweights, int node) const {
     double sum = -GetNodePenalty(node);
+#ifdef DEBUG
+    LOG(INFO) << "Initial sum: " << sum;
+#endif
     const GraphInference::FeaturesMap& features = fweights.features_;
     const GraphInference::FactorFeaturesMap& factor_features = fweights.factor_features_;
     for (const GraphQuery::Arc& arc : query_->arcs_adjacent_to_node_[node]) {
@@ -407,7 +415,7 @@ public:
        }
      }
 
-    for (unsigned int i = 0; i < query_->factors_of_a_node_[node].size(); i++) {
+    for (uint i = 0; i < query_->factors_of_a_node_[node].size(); i++) {
       GraphInference::Factor factor;
       factor.insert(assignments_[node].label);
       for (auto var = query_->factors_of_a_node_[node][i].begin(); var != query_->factors_of_a_node_[node][i].end(); var++) {
@@ -424,11 +432,14 @@ public:
       auto factor_feature = factor_features.find(factor);
       if (factor_feature != factor_features.end()) {
 #ifdef DEBUG
-        LOG(INFO) << "Factor feature found";
+        LOG(INFO) << "Factor feature found: " << factor_feature->second;
 #endif
         sum += factor_feature->second;
       }
     }
+#ifdef DEBUG
+    LOG(INFO) << "Final sum: " << sum;
+#endif
     return sum;
   }
 
@@ -464,7 +475,7 @@ public:
     if (node == node_assigned) {
       node_label = node_assignment;
     }
-    for (unsigned int i = 0; i < query_->factors_of_a_node_[node].size(); i++) {
+    for (uint i = 0; i < query_->factors_of_a_node_[node].size(); i++) {
       GraphInference::Factor factor;
       factor.insert(node_label);
       for (auto var = query_->factors_of_a_node_[node][i].begin(); var != query_->factors_of_a_node_[node][i].end(); var++) {
@@ -567,13 +578,31 @@ public:
     return query_->arcs_adjacent_to_node_[node].size();
   }
 
-  void GetFactorCandidatesForFactorSize(const GraphInference& fweights,
+  void GetFactorCandidates(const GraphInference& fweights,
       int factor_size,
       std::vector<GraphInference::Factor>* candidates,
+      GraphInference::Factor giv_labels,
       int beam_size) {
     std::vector<std::pair<double, GraphInference::Factor>> empty_vec;
-    std::vector<std::pair<double, GraphInference::Factor>> v = FindWithDefault(fweights.best_factor_features_for_factor_size_, factor_size, empty_vec);
-    for (unsigned int i = 0; i < v.size(); i++) {
+    std::vector<std::pair<double, GraphInference::Factor>> v;
+
+    if (giv_labels.empty()) {
+      v = FindWithDefault(fweights.best_factor_features_for_factor_size_, factor_size, empty_vec);
+    } else {
+      auto it = giv_labels.begin();
+      GraphInference::LabelFactorsMap empty_map;
+      GraphInference::LabelFactorsMap best_factor_features = FindWithDefault(fweights.best_factor_features_depth_one_, factor_size, empty_map);
+      v = FindWithDefault(best_factor_features, *it, empty_vec);
+      if (v.size() > beam_size && giv_labels.size() >= 2) {
+        int first_label = *it;
+        it++;
+        std::unordered_map<int, GraphInference::LabelFactorsMap> empty_map_depth_one;
+        std::unordered_map<int, GraphInference::LabelFactorsMap> best_factor_features_depth_one = FindWithDefault(fweights.best_factor_features_depth_two_, factor_size, empty_map_depth_one);
+        best_factor_features = FindWithDefault(fweights.best_factor_features_depth_one_, first_label, empty_map);
+        v = FindWithDefault(best_factor_features, *it, empty_vec);
+      }
+    }
+    for (unsigned int i = 0; i < v.size() && i < beam_size; i++) {
       candidates->push_back(v[i].second);
     }
   }
@@ -600,7 +629,7 @@ public:
       }
     }
 
-    for (unsigned int i = 0; i < query_->factors_of_a_node_[node].size(); i++) {
+    for (uint i = 0; i < query_->factors_of_a_node_[node].size(); i++) {
       GraphInference::Factor f_with_assignments;
       for (auto var = query_->factors_of_a_node_[node][i].begin(); var != query_->factors_of_a_node_[node][i].end(); var++) {
         Assignment a = assignments_[*var];
@@ -622,7 +651,7 @@ public:
       }
       LOG(INFO) << "v size: " << v.size();
 #endif
-      for (unsigned int j = 0; j < v.size() && j < beam_size; j++) {
+      for (uint j = 0; j < v.size() && j < beam_size; j++) {
         candidates->push_back(v[j].second);
       }
     }
@@ -798,7 +827,7 @@ public:
         if (HasDuplicationConflictsAtNode(node)) continue;
         double score = GetNodeScore(fweights, node);
 #ifdef DEBUG
-        LOG(INFO) << "score=" << score << " best_score=" << candidates[i];
+        LOG(INFO) << "score=" << score << " best_score=" << best_score;
 #endif
         if (score > best_score) {
           best_label = nodea.label;
@@ -935,7 +964,7 @@ public:
       }
 
       std::vector<GraphInference::Factor> factors;
-      GetFactorCandidatesForFactorSize(fweights, factor.size(), &factors, beam_size);
+      GetFactorCandidates(fweights, factor.size(), &factors, giv_labels, beam_size);
       double best_score = 0;
       std::vector<int> best_assignments;
       for (auto var = inf_vars.begin(); var != inf_vars.end(); var++) {
@@ -943,7 +972,7 @@ public:
         best_assignments.push_back(assignments_[*var].label);
       }
       std::vector<GraphInference::Factor> factors_candidates;
-      for (unsigned int j = 0; j < factors.size(); j++) {
+      for (uint j = 0; j < factors.size(); j++) {
         int factor_matches_giv_vars = true;
         for (auto label = giv_labels.begin(); label != giv_labels.end(); label++) {
           if (factors[j].count(*label) == 0) {
@@ -955,25 +984,31 @@ public:
           factors_candidates.push_back(factors[j]);
         }
       }
-
-      for (unsigned int j = 0; j < factors_candidates.size(); j++) {
+#ifdef DEBUG
+      LOG(INFO) << "Number of factor candidates: " << factors_candidates.size();
+#endif
+      for (uint j = 0; j < factors_candidates.size(); j++) {
         GraphInference::Factor current_candidate = factors_candidates[j];
         std::vector<int> candidate_inf_labels;
-        std::vector<std::vector<int>> permutations;
+        std::unordered_set<std::vector<int>> permutations;
         for (auto label = current_candidate.begin(); label != current_candidate.end(); label++) {
           if (giv_labels.count(*label) == 0) {
             candidate_inf_labels.push_back(*label);
           }
         }
-
-        HeapPermute(candidate_inf_labels, permutations, candidate_inf_labels.size());
-        for (unsigned int k = 0; k < permutations.size(); k++) {
-          for (unsigned int z = 0; z < inf_vars.size(); z++) {
-            assignments_[inf_vars[z]].label = permutations[k][z];
+        uint64 num_permutations = CalculateFactorial(candidate_inf_labels.size());
+        if (candidate_inf_labels.size() > 64 || num_permutations > FLAGS_permutations_beam_size) {
+          RandomPermute(candidate_inf_labels, permutations);
+        } else {
+          HeapPermute(candidate_inf_labels, permutations, candidate_inf_labels.size());
+        }
+        for (auto it = permutations.begin(); it != permutations.end(); it++) {
+          for (uint z = 0; z < inf_vars.size(); z++) {
+            assignments_[inf_vars[z]].label = (*it)[z];
           }
 
           bool is_assignment_valid = true;
-          for (unsigned int z = 0; z < inf_vars.size(); z++) {
+          for (uint z = 0; z < inf_vars.size(); z++) {
             if (HasDuplicationConflictsAtNode(inf_vars[z]) ||
                 !fweights.label_checker_.IsLabelValid(assignments_[inf_vars[z]].label)) {
               is_assignment_valid = false;
@@ -985,14 +1020,13 @@ public:
           }
           double score = 0;
           std::vector<int> assignment;
-          for (unsigned int z = 0; z < inf_vars.size(); z++) {
+          for (uint z = 0; z < inf_vars.size(); z++) {
             score += GetNodeScore(fweights, inf_vars[z]);
             assignment.push_back(assignments_[inf_vars[z]].label);
           }
 #ifdef DEBUG
-
           LOG(INFO) << "Trying permutation: ";
-          for (unsigned int z = 0; z < assignment.size(); z++) {
+          for (uint z = 0; z < assignment.size(); z++) {
             LOG(INFO) << assignment[z];
           }
           LOG(INFO) << "Best score: " << best_score << " score: " << score;
@@ -1003,16 +1037,24 @@ public:
           }
         }
       }
-
-      for (unsigned int j = 0; j < inf_vars.size(); j++) {
+#ifdef DEBUG
+      LOG(INFO) << "Best assignment: ";
+      for (uint j = 0; j < best_assignments.size(); j++) {
+        LOG(INFO) << best_assignments[j] << ": " << label_set_->GetLabelName(best_assignments[j]);
+      }
+#endif
+      for (uint j = 0; j < inf_vars.size(); j++) {
         assignments_[inf_vars[j]].label = best_assignments[j];
       }
     }
   }
 
-  void HeapPermute(std::vector<int> v, std::vector<std::vector<int>>& permutations, int n) {
+  void HeapPermute(std::vector<int> v, std::unordered_set<std::vector<int>>& permutations, int n) {
+    if (permutations.size() > FLAGS_permutations_beam_size) {
+      return;
+    }
     if (n == 1) {
-      permutations.push_back(v);
+      permutations.insert(v);
     } else {
       for (int i = 0; i < n; i++) {
         HeapPermute(v, permutations, n-1);
@@ -1027,6 +1069,25 @@ public:
         }
       }
     }
+  }
+
+  void RandomPermute(std::vector<int> v, std::unordered_set<std::vector<int>>& permutations) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    while (permutations.size() < FLAGS_permutations_beam_size) {
+      std::shuffle(v.begin(), v.end(), g);
+      if (permutations.count(v) == 0) {
+        permutations.insert(v);
+      }
+    }
+  }
+
+  uint64 CalculateFactorial(int n) {
+    uint64 result = 1;
+    for (uint i = n; i > 0; i--) {
+      result *= i;
+    }
+    return result;
   }
 
 private:
@@ -1370,7 +1431,7 @@ void GraphInference::PerformAssignmentOptimization(GraphNodeAssignment* a) const
     }
     if (pass < FLAGS_graph_per_factor_passes) {
       int64 start_time = GetCurrentTimeMicros();
-      a->LocalPerFactorOptimizationPass(*this, kFactorsBeamSize);
+      a->LocalPerFactorOptimizationPass(*this, FLAGS_factors_limit);
       int64 end_time = GetCurrentTimeMicros();
       VLOG(2) << "Per factor pass " << (end_time - start_time)/1000 << "ms.";
     }
@@ -1503,7 +1564,7 @@ void GraphInference::PLLearn(
 
   FactorFeaturesMap factor_affected_features;
 
-  for (unsigned int i = 0; i < a->assignments_.size(); i++) {
+  for (uint i = 0; i < a->assignments_.size(); i++) {
     if (a->assignments_[i].must_infer) {
       std::vector<int> candidates;
       a->GetLabelCandidates(*this, i, &candidates, beam_size_);
@@ -1670,6 +1731,8 @@ void GraphInference::PrepareForInference() {
   best_features_for_b_type_.clear();
   best_factor_features_.clear();
   best_factor_features_for_factor_size_.clear();
+  best_factor_features_depth_one_.clear();
+  best_factor_features_depth_two_.clear();
   for (auto it = features_.begin(); it != features_.end(); ++it) {
     const GraphFeature& f = it->first;
     double feature_weight = it->second.getValue();
@@ -1682,6 +1745,14 @@ void GraphInference::PrepareForInference() {
     Factor f = factor_feature->first;
     double feature_weight = factor_feature->second;
 
+    for (auto var1 = f.begin(); var1 != f.end(); var1++) {
+      for (auto  var2 = f.begin(); var2 != f.end(); var2++) {
+        if (*var2 != *var1) {
+          best_factor_features_depth_two_[f.size()][*var1][*var2].push_back(std::pair<double, GraphInference::Factor>(feature_weight, f));
+        }
+      }
+      best_factor_features_depth_one_[f.size()][*var1].push_back(std::pair<double, GraphInference::Factor>(feature_weight, f));
+    }
     best_factor_features_for_factor_size_[f.size()].push_back(std::pair<double, GraphInference::Factor>(feature_weight, f));
 
     // Take out 1 by 1 each of the variables and then use the remainings as keys for the best features
@@ -1722,6 +1793,35 @@ void GraphInference::PrepareForInference() {
   for (auto it = best_factor_features_for_factor_size_.begin(); it != best_factor_features_for_factor_size_.end(); it++) {
     std::sort(it->second.begin(), it->second.end(), std::greater<std::pair<double, GraphInference::Factor> >());
   }
+  for (auto it = best_factor_features_depth_one_.begin(); it != best_factor_features_depth_one_.end(); it++) {
+    for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+      std::sort(it2->second.begin(), it2->second.end(), std::greater<std::pair<double, GraphInference::Factor> >());
+    }
+  }
+  for (auto it = best_factor_features_depth_two_.begin(); it != best_factor_features_depth_two_.end(); it++) {
+    for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+      for (auto it3 = it2->second.begin(); it3 != it2->second.end(); it3++) {
+        std::sort(it3->second.begin(), it3->second.end(), std::greater<std::pair<double, GraphInference::Factor> >());
+      }
+    }
+  }
+#ifdef DEBUG
+  for (auto it = best_factor_features_depth_two_.begin(); it != best_factor_features_depth_two_.end(); it++) {
+    LOG(INFO) << "Key_size: " << it->first;
+    for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+      LOG(INFO) << "Var1_key: " << it2->first;
+      for (auto it3 = it2->second.begin(); it3 != it2->second.end(); it3++) {
+        LOG(INFO) << "Var2_key: " << it3->first;
+        for (auto feature = it3->second.begin(); feature != it3->second.end(); feature++) {
+          LOG(INFO) << "Weight=" << feature->first;
+          for (auto label = feature->second.begin(); label != feature->second.end(); label++) {
+            LOG(INFO) << *label;
+          }
+        }
+      }
+    }
+  }
+#endif
   LOG(INFO) << "GraphInference prepared for MAP inference.";
 }
 

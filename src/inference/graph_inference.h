@@ -126,6 +126,7 @@ public:
       NodeConfusionStats* stats);
 
   typedef std::set<int> Factor;
+  typedef std::unordered_map<int, std::vector<std::pair<double, Factor>>> LabelFactorsMap;
 
 private:
   friend class GraphNodeAssignment;
@@ -137,8 +138,6 @@ private:
   typedef google::dense_hash_map<GraphFeature, LockFreeWeights> FeaturesMap;
   typedef google::dense_hash_map<GraphFeature, double> SimpleFeaturesMap;
   typedef std::unordered_map<Factor, double> FactorFeaturesMap;
-
-
   // std::unordered_map<GraphFeature, double> features_;
   FeaturesMap features_;
   FactorFeaturesMap factor_features_;
@@ -146,7 +145,11 @@ private:
   //google::dense_hash_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<Factor, std::vector<std::pair<double, int>>> best_factor_features_;
+
   std::unordered_map<int, std::vector<std::pair<double, Factor>>> best_factor_features_for_factor_size_;
+  std::unordered_map<int, LabelFactorsMap> best_factor_features_depth_one_;
+  std::unordered_map<int, std::unordered_map<int, LabelFactorsMap>> best_factor_features_depth_two_;
+
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   StringSet strings_;
   LabelChecker label_checker_;
