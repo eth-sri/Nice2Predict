@@ -28,6 +28,7 @@
 #include "server_log.h"
 #include "inference.h"
 #include "readerutil.h"
+#include "base.h"
 
 DEFINE_string(model, "model", "Input model files");
 DEFINE_string(model_version, "", "Version of the current model");
@@ -185,7 +186,10 @@ void Nice2Server::Listen() {
   Json::Value request;
   Json::Value response;
   jsonreader.parse(line, request, false);
+  int64 start_time = GetCurrentTimeMicros();
   internal_->infer(request, response);
+  int64 end_time = GetCurrentTimeMicros();
+  LOG(INFO) << "Inference took " << (end_time - start_time) / 1000 << "ms. ";
   Json::FastWriter writer;
   std::string response_str = writer.write(response);
   LOG(INFO) << std::fixed << response_str;

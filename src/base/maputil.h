@@ -98,4 +98,28 @@ namespace std { namespace tr1 {
   };
 }}
 
+namespace std {
+  template <> struct hash<std::multiset<int>> {
+    size_t operator()(const std::multiset<int>& x) const {
+      int hc = x.size();
+      for (auto var = x.begin(); var != x.end(); var++) {
+        hc = hc * 6037 + *var;
+      }
+      return hc;
+    }
+  };
+}
+
+namespace std { namespace tr1 {
+  template <> struct hash<std::multiset<int>> {
+    size_t operator()(const std::multiset<int>& x) const {
+      int hc = x.size();
+      for (auto var = x.begin(); var != x.end(); var++) {
+        hc = hc * 6037 + *var;
+      }
+      return hc;
+    }
+  };
+}}
+
 #endif /* BASE_MAPUTIL_H_ */
