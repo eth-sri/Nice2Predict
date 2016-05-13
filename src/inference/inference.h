@@ -24,7 +24,6 @@
 
 // Abstract classes for inference.
 
-
 // A single query to be asked.
 class Nice2Query {
 public:
