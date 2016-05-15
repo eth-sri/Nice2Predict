@@ -1,9 +1,13 @@
 /*
- * factor_feature_level_test.cpp
+ * factor_features_level_test.h
  *
- *  Created on: May 13, 2016
+ *  Created on: May 15, 2016
  *      Author: matteo
  */
+
+#ifndef TESTS_FACTOR_FEATURES_LEVEL_TEST_H_
+#define TESTS_FACTOR_FEATURES_LEVEL_TEST_H_
+
 #define GTEST_HAS_TR1_TUPLE 0
 
 #include "gtest/gtest.h"
@@ -82,16 +86,4 @@ TEST(FactorFeaturesLevelTest, NextLevelCorrectNumberOfEntriesWithOneDuplicatedLa
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+#endif /* TESTS_FACTOR_FEATURES_LEVEL_TEST_H_ */

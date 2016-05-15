@@ -4,11 +4,11 @@ cmake_minimum_required(VERSION 2.8)
 INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/base)
 INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/inference)
 
-SET(TESTS_H)
+SET(TESTS_H
+    factor_features_level_test.h)
 
 SET(TESTS_CPP
-    inference_test.cpp
-    factor_features_level_test.cpp)
+    unit_tests.cpp)
 
 ADD_LIBRARY(tests ${TESTS_H} ${TESTS_CPP})
 
@@ -18,7 +18,7 @@ if (test)
   include_directories(${GTEST_INCLUDE_DIRS})
   INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/tests)
 
-  ADD_EXECUTABLE(inference_test inference_test.cpp)
-  TARGET_LINK_LIBRARIES(inference_test inference pthread gtest)
-  add_test(inference_test inference_test)
+  ADD_EXECUTABLE(unit_tests unit_tests.cpp)
+  TARGET_LINK_LIBRARIES(unit_tests inference pthread gtest)
+  add_test(unit_tests unit_tests)
 endif()
