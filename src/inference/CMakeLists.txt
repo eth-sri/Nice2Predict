@@ -13,3 +13,14 @@ SET(INFERENCE_CPP
 
 ADD_LIBRARY(inference ${INFERENCE_H} ${INFERENCE_CPP})
 TARGET_LINK_LIBRARIES(inference base gflags glog jsoncpp)
+
+if (test)
+  enable_testing()
+  find_package(GTest REQUIRED)
+  include_directories(${GTEST_INCLUDE_DIRS})
+
+  ADD_EXECUTABLE(inference_test inference_test.cpp)
+  TARGET_LINK_LIBRARIES(inference_test inference pthread gtest)
+  add_test(inference_test inference_test)
+endif()
+
