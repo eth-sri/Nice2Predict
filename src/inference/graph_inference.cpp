@@ -68,8 +68,6 @@ static const size_t kStartPerNodeBeamSize = 4;
 static const size_t kMaxPerNodeBeamSize = 64;
 static const size_t kLoopyBPBeamSize = 32;
 
-static const size_t kMaximumFactorSizeCalculateFactorial = 64;
-
 namespace std {
   template <> struct hash<Json::Value> {
     size_t operator()(const Json::Value& v) const {

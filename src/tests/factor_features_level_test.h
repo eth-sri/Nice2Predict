@@ -17,44 +17,44 @@
 
 TEST(FactorFeaturesLevelTest, NextLevelZeroEntryWhenCurrentDepthGreaterThanMaximumDepth) {
   FactorFeaturesLevel unit_under_test;
-  Factor mock_factor;
-  mock_factor.insert(1);
-  mock_factor.insert(2);
-  mock_factor.insert(3);
+  Factor fake_factor;
+  fake_factor.insert(1);
+  fake_factor.insert(2);
+  fake_factor.insert(3);
   Factor visited_labels;
   int current_label = 1;
   int current_depth = 5;
   int maximum_depth = 2;
   double weight = 0.5;
 
-  unit_under_test.InsertFactorFeature(weight, mock_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(weight, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
 
   EXPECT_EQ(0, unit_under_test.next_level.size());
 }
 
 TEST(FactorFeaturesLevelTest, FactorFeaturesOneEntryWhenInsertingFactorFeature) {
   FactorFeaturesLevel unit_under_test;
-  Factor mock_factor;
-  mock_factor.insert(1);
-  mock_factor.insert(2);
-  mock_factor.insert(3);
+  Factor fake_factor;
+  fake_factor.insert(1);
+  fake_factor.insert(2);
+  fake_factor.insert(3);
   Factor visited_labels;
   int current_label = 1;
   int current_depth = 5;
   int maximum_depth = 2;
   double weight = 0.5;
 
-  unit_under_test.InsertFactorFeature(weight, mock_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(weight, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
 
   EXPECT_EQ(1, unit_under_test.factor_features.size());
 }
 
 TEST(FactorFeaturesLevelTest, NextLevelCorrectNumberOfEntriesWhenOneOfTheOtherLabelWasVisited) {
   FactorFeaturesLevel unit_under_test;
-  Factor mock_factor;
-  mock_factor.insert(1);
-  mock_factor.insert(2);
-  mock_factor.insert(3);
+  Factor fake_factor;
+  fake_factor.insert(1);
+  fake_factor.insert(2);
+  fake_factor.insert(3);
   Factor visited_labels;
   visited_labels.insert(2);
   int current_label = 1;
@@ -62,25 +62,25 @@ TEST(FactorFeaturesLevelTest, NextLevelCorrectNumberOfEntriesWhenOneOfTheOtherLa
   int maximum_depth = 2;
   double weight = 0.5;
 
-  unit_under_test.InsertFactorFeature(weight, mock_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(weight, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
 
   EXPECT_EQ(1, unit_under_test.next_level.size());
 }
 
 TEST(FactorFeaturesLevelTest, NextLevelCorrectNumberOfEntriesWithOneDuplicatedLabelInFactor) {
   FactorFeaturesLevel unit_under_test;
-  Factor mock_factor;
-  mock_factor.insert(1);
-  mock_factor.insert(1);
-  mock_factor.insert(2);
-  mock_factor.insert(3);
+  Factor fake_factor;
+  fake_factor.insert(1);
+  fake_factor.insert(1);
+  fake_factor.insert(2);
+  fake_factor.insert(3);
   Factor visited_labels;
   int current_label = 1;
   int current_depth = 1;
   int maximum_depth = 2;
   double weight = 0.5;
 
-  unit_under_test.InsertFactorFeature(weight, mock_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(weight, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
 
   EXPECT_EQ(3, unit_under_test.next_level.size());
 }

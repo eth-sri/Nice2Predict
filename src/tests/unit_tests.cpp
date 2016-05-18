@@ -12,6 +12,7 @@
 #include "graph_inference.h"
 
 #include "factor_features_level_test.h"
+#include "inference_test.h"
 
 GTEST_API_ int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
