@@ -68,7 +68,7 @@ struct FactorFeaturesLevel {
     }
   }
 
-  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, int beam_size) {
+  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, uint beam_size) {
     if (factor_features.size() < beam_size || next_level.empty()) {
       for (auto it = factor_features.begin(); it != factor_features.end(); it++) {
         candidates->push_back(it->second);
@@ -154,12 +154,6 @@ public:
       Nice2Assignment* assignment) const override;
 
   virtual double GetAssignmentScore(const Nice2Assignment* assignment) const override;
-
-  virtual void UpdateStats(
-      const GraphNodeAssignment& assignment,
-      const GraphNodeAssignment& new_assignment,
-      PrecisionStats *stats,
-      const double margin);
 
   virtual void InitializeFeatureWeights(double regularization) override;
 
