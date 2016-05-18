@@ -64,8 +64,6 @@ static const size_t kStartPerNodeBeamSize = 4;
 static const size_t kMaxPerNodeBeamSize = 64;
 static const size_t kLoopyBPBeamSize = 32;
 
-static const size_t kMaximumFactorSizeCalculateFactorial = 64;
-
 namespace std {
   template <> struct hash<Json::Value> {
     size_t operator()(const Json::Value& v) const {
@@ -1296,8 +1294,6 @@ private:
     }
   }
 };
-
-
 
 
 GraphInference::GraphInference() : regularizer_(1.0), svm_margin_(1e-9), num_svm_training_samples_(0) {

@@ -5,7 +5,8 @@ INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/base)
 INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/inference)
 
 SET(TESTS_H
-    factor_features_level_test.h)
+    factor_features_level_test.h
+    inference_test.h)
 
 SET(TESTS_CPP
     unit_tests.cpp)
@@ -15,6 +16,7 @@ ADD_LIBRARY(tests ${TESTS_H} ${TESTS_CPP})
 if (test)
   enable_testing()
   find_package(GTest REQUIRED)
+  include_directories(${GMOCK_INCLUDE_DIRS})
   include_directories(${GTEST_INCLUDE_DIRS})
   INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/tests)
 
