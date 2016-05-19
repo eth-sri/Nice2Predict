@@ -46,6 +46,37 @@ void ComputePrecisionStats(std::vector<std::string> ref_data_samples,
   }
 }
 
+TEST(MapInferenceTest, GivesCorrectAssignmentWithPairwiseFeature) {
+  const std::string training_data_sample = "{\"query\":[{\"a\":1,\"b\":3,\"f2\":\"mock\"}]," \
+        "\"assign\":[{\"v\":0,\"inf\":\"base\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+        "{\"v\":2,\"inf\":\"props\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
+
+  const std::string data_sample = "{\"query\":[{\"a\":1,\"b\":3,\"f2\":\"mock\"}]," \
+        "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+        "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
+
+  Json::Reader jsonreader;
+  Json::Value data_sample_value;
+  jsonreader.parse(data_sample, data_sample_value, false);
+  GraphInference unit_under_test;
+  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  Nice2Query* query = unit_under_test.CreateQuery();
+  query->FromJSON(data_sample_value["query"]);
+  Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
+
+  unit_under_test.MapInference(query, assignment);
+
+  const std::string ref_data_sample = "{\"query\":[{\"a\":1,\"b\":3,\"f2\":\"mock\"}]," \
+        "\"assign\":[{\"v\":0,\"inf\":\"base\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+        "{\"v\":2,\"inf\":\"props\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
+  std::vector<std::string> ref_data_samples;
+  ref_data_samples.push_back(ref_data_sample);
+  PrecisionStats precision_stats;
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+
+  EXPECT_EQ(0, precision_stats.incorrect_labels);
+}
+
 TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTest) {
   const std::string training_data_sample = "{\"query\":[{\"group\":[1,2,3,4]}]," \
       "\"assign\":[{\"v\":0,\"inf\":\"base\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
@@ -76,8 +107,6 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTest) {
   std::vector<std::string> ref_data_samples;
   ref_data_samples.push_back(ref_data_sample_first_permutation);
   ref_data_samples.push_back(ref_data_sample_second_permutation);
-  Json::Value ref_data_sample_first_permutation_value;
-  Json::Value ref_data_sample_second_permutation_value;
   PrecisionStats precision_stats;
   ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
 
@@ -183,7 +212,7 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenAllInfVars)
   PrecisionStats precision_stats;
   ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
 
-  // Since it either 1 of the two permutations the number of errors must be less than or equal 2
+  // Since it either 1 of the two permutations the number of errors must be less than or equal to 2
   EXPECT_GE(2, precision_stats.incorrect_labels);
 }
 

@@ -211,9 +211,6 @@ private:
   std::unordered_map<Factor, std::vector<std::pair<double, int>>> best_factor_features_;
 
   std::unordered_map<int, FactorFeaturesLevel> best_factor_features_first_level_;
-//  std::unordered_map<int, std::vector<std::pair<double, Factor>>> best_factor_features_for_factor_size_;
-//  std::unordered_map<int, LabelFactorsMap> best_factor_features_depth_one_;
-//  std::unordered_map<int, std::unordered_map<int, LabelFactorsMap>> best_factor_features_depth_two_;
 
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   StringSet strings_;
