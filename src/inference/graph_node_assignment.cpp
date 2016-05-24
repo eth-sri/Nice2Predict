@@ -158,9 +158,7 @@ double GraphNodeAssignment::GetNodePenalty(int node) const {
 // Gets the score contributed by all arcs adjacent to a node.
 double GraphNodeAssignment::GetNodeScore(const GraphInference& fweights, int node) const {
   double sum = -GetNodePenalty(node);
-#ifdef DEBUG
-  LOG(INFO) << "Initial sum: " << sum;
-#endif
+
   const GraphInference::FeaturesMap& features = fweights.features_;
   const GraphInference::FactorFeaturesMap& factor_features = fweights.factor_features_;
   for (const Arc& arc : query_->arcs_adjacent_to_node_[node]) {
@@ -181,24 +179,11 @@ double GraphNodeAssignment::GetNodeScore(const GraphInference& fweights, int nod
       factor.insert(assignments_[*var].label);
     }
 
-#ifdef DEBUG
-    LOG(INFO) << "Looking for factor_feature: ";
-    for (auto var = factor.begin(); var != factor.end(); var++) {
-      LOG(INFO) << *var;
-    }
-#endif
-
     auto factor_feature = factor_features.find(factor);
     if (factor_feature != factor_features.end()) {
-#ifdef DEBUG
-      LOG(INFO) << "Factor feature found: " << factor_feature->second;
-#endif
       sum += factor_feature->second;
     }
   }
-#ifdef DEBUG
-  LOG(INFO) << "Final sum: " << sum;
-#endif
   return sum;
 }
 
@@ -240,17 +225,8 @@ double GraphNodeAssignment::GetNodeScoreGivenAssignmentToANode(const GraphInfere
     for (auto var = query_->factors_of_a_node_[node][i].begin(); var != query_->factors_of_a_node_[node][i].end(); var++) {
       factor.insert(assignments_[*var].label);
     }
-#ifdef DEBUG
-    LOG(INFO) << "Looking for factor_feature: ";
-    for (auto var = factor.begin(); var != factor.end(); var++) {
-      LOG(INFO) << *var;
-    }
-#endif
     auto factor_feature = factor_features.find(factor);
     if (factor_feature != factor_features.end()) {
-#ifdef DEBUG
-      LOG(INFO) << "Factor feature found";
-#endif
       sum += factor_feature->second;
     }
   }
@@ -389,13 +365,6 @@ void GraphNodeAssignment::GetLabelCandidates(const GraphInference& fweights, int
       continue;
     }
     const std::vector<std::pair<double, int>>& v = FindWithDefault(fweights.best_factor_features_, f_with_assignments, empty_vec);
-#ifdef DEBUG
-    LOG(INFO) << "Factor: ";
-    for (auto var = f_with_assignments.begin(); var != f_with_assignments.end(); var++) {
-      LOG(INFO) << *var;
-    }
-    LOG(INFO) << "v size: " << v.size();
-#endif
     for (uint j = 0; j < v.size() && j < beam_size; j++) {
       candidates->push_back(v[j].second);
     }
@@ -406,12 +375,6 @@ void GraphNodeAssignment::GetLabelCandidates(const GraphInference& fweights, int
 #endif
   std::sort(candidates->begin(), candidates->end());
   candidates->erase(std::unique(candidates->begin(), candidates->end()), candidates->end());
-#ifdef DEBUG
-  LOG(INFO) << "Candidates for " << node << ":";
-  for (int i = 0; i < candidates->size(); i++) {
-    LOG(INFO) << (*candidates)[i];
-  }
-#endif
 }
 
 double GraphNodeAssignment::GetTotalScore(const GraphInference& fweights) const {
@@ -568,16 +531,10 @@ void GraphNodeAssignment::LocalPerNodeOptimizationPass(const GraphInference& fwe
     int best_position = -1;
 #endif
     for (size_t i = 0; i < candidates.size(); ++i) {
-#ifdef DEBUG
-      LOG(INFO) << "Trying candidate " << i << ": " << candidates[i] << " for node " << node;
-#endif
       nodea.label = candidates[i];
       if (!fweights.label_checker_.IsLabelValid(assignments_[node].label)) continue;
       if (HasDuplicationConflictsAtNode(node)) continue;
       double score = GetNodeScore(fweights, node);
-#ifdef DEBUG
-      LOG(INFO) << "score=" << score << " best_score=" << best_score;
-#endif
       if (score > best_score) {
         best_label = nodea.label;
         best_score = score;
@@ -606,9 +563,6 @@ void GraphNodeAssignment::LocalPerNodeOptimizationPassWithDuplicateNameResolutio
     int best_label = initial_label;
     int best_node2 = -1;
     for (size_t i = 0; i < candidates.size(); ++i) {
-#ifdef DEBUG
-      LOG(INFO) << "Trying candidate " << i << ": " << candidates[i] << " for node " << node;
-#endif
       nodea.label = candidates[i];
       if (!fweights.label_checker_.IsLabelValid(assignments_[node].label)) continue;
       if (HasDuplicationConflictsAtNode(node)) {
@@ -621,9 +575,6 @@ void GraphNodeAssignment::LocalPerNodeOptimizationPassWithDuplicateNameResolutio
         if (correct) {
           score -= GetNodeScore(fweights, node2);  // The score on node2 is essentially the gain of the score on node2.
           if (score > best_score) {
-#ifdef DEBUG
-            LOG(INFO) << "score=" << score << " best_score=" << candidates[i];
-#endif
             best_label = nodea.label;
             best_score = score;
             best_node2 = node2;
@@ -632,9 +583,6 @@ void GraphNodeAssignment::LocalPerNodeOptimizationPassWithDuplicateNameResolutio
       } else {
         double score = GetNodeScore(fweights, node);
         if (score > best_score) {
-#ifdef DEBUG
-          LOG(INFO) << "score=" << score << " best_score=" << candidates[i];
-#endif
           best_label = nodea.label;
           best_score = score;
           best_node2 = -1;
@@ -733,9 +681,6 @@ void GraphNodeAssignment::LocalPerFactorOptimizationPass(const GraphInference& f
         factors_candidates.push_back(factors[j]);
       }
     }
-#ifdef DEBUG
-    LOG(INFO) << "Number of factor candidates: " << factors_candidates.size();
-#endif
     for (uint j = 0; j < factors_candidates.size(); j++) {
       Factor current_candidate = factors_candidates[j];
       std::set<int> distinct_labels;
@@ -748,12 +693,6 @@ void GraphNodeAssignment::LocalPerFactorOptimizationPass(const GraphInference& f
         }
       }
       uint64 num_permutations = CalculateFactorial(distinct_labels.size());
-#ifdef DEBUG
-      LOG(INFO) << "Calculating permutations for variables: ";
-      for (auto it = candidate_inf_labels.begin(); it != candidate_inf_labels.end(); it++) {
-        LOG(INFO) << *it;
-      }
-#endif
       if (distinct_labels.size() > 64 || num_permutations > FLAGS_permutations_beam_size) {
         RandomPermute(candidate_inf_labels, permutations);
       } else {
@@ -777,31 +716,16 @@ void GraphNodeAssignment::LocalPerFactorOptimizationPass(const GraphInference& f
         }
         double score = 0;
         std::vector<int> assignment;
-#ifdef DEBUG
-        LOG(INFO) << "Trying permutation: ";
-        for (uint z = 0; z < assignment.size(); z++) {
-          LOG(INFO) << assignment[z];
-        }
-#endif
         for (uint z = 0; z < inf_vars.size(); z++) {
           score += GetNodeScore(fweights, inf_vars[z]);
           assignment.push_back(assignments_[inf_vars[z]].label);
         }
-#ifdef DEBUG
-        LOG(INFO) << "Best score: " << best_score << " score: " << score;
-#endif
         if (score > best_score) {
           best_assignments = assignment;
           best_score = score;
         }
       }
     }
-#ifdef DEBUG
-    LOG(INFO) << "Best assignment: ";
-    for (uint j = 0; j < best_assignments.size(); j++) {
-      LOG(INFO) << best_assignments[j] << ": " << label_set_->GetLabelName(best_assignments[j]);
-    }
-#endif
     for (uint j = 0; j < inf_vars.size(); j++) {
       assignments_[inf_vars[j]].label = best_assignments[j];
     }

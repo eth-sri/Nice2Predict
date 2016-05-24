@@ -28,9 +28,6 @@
 #include "maputil.h"
 #include "label_checker.h"
 
-//TODO delete this
-#include "glog/logging.h"
-
 typedef std::multiset<int> Factor;
 
 struct NodeConfusionStats {
@@ -79,22 +76,6 @@ struct FactorFeaturesLevel {
       if (next_level.count(next_level_label) > 0) {
         next_level[next_level_label]->GetFactors(giv_labels, current_depth + 1, *it, candidates, beam_size);
       }
-    }
-  }
-
-  // TODO Delete this
-  void PrintAllFactorFeatures(int depth) {
-    LOG(INFO) << "Level: " << depth;
-    for (auto it = factor_features.begin(); it != factor_features.end(); it++) {
-      LOG(INFO) << "Feature Weight: " << it->first;
-      for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
-        LOG(INFO) << *it2;
-      }
-    }
-
-    for (auto it = next_level.begin(); it != next_level.end(); it++) {
-      LOG(INFO) << "next_level_key: " << it->first;
-      it->second->PrintAllFactorFeatures(depth + 1);
     }
   }
 
