@@ -34,14 +34,18 @@ public:
 };
 
 struct PrecisionStats {
-  PrecisionStats() : correct_labels(0), incorrect_labels(0) {}
+  PrecisionStats() : correct_labels(0), incorrect_labels(0), num_known_predictions(0) {}
   void AddStats(const PrecisionStats& o) {
     correct_labels += o.correct_labels;
     incorrect_labels += o.incorrect_labels;
+    num_known_predictions += o.num_known_predictions;
   }
 
-  int correct_labels;
+  int correct_labels;  // When making an unknown prediction, this is considered an incorrect label.
   int incorrect_labels;
+
+  // Only includes labels that were predicted not be unknown.
+  int num_known_predictions;
 
   std::mutex lock;
 };
@@ -50,6 +54,7 @@ struct SingleLabelErrorStats {
   std::map<std::string, int> errors_and_counts;
   std::mutex lock;
 };
+
 
 // Assigned results for the query (including the pre-assigned values).
 class Nice2Assignment {
