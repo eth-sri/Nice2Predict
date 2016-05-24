@@ -65,24 +65,24 @@ static const size_t kMaxPerNodeBeamSize = 64;
 static const size_t kLoopyBPBeamSize = 32;
 
 namespace std {
-template <> struct hash<Json::Value> {
-  size_t operator()(const Json::Value& v) const {
-    if (v.isInt()) {
-      return hash<int>()(v.asInt());
-    }
-    if (v.isString()) {
-      const char* str = v.asCString();
-      size_t r = 1;
-      while (*str) {
-        r = (r * 17) + (*str);
-        ++str;
+  template <> struct hash<Json::Value> {
+    size_t operator()(const Json::Value& v) const {
+      if (v.isInt()) {
+        return hash<int>()(v.asInt());
       }
-      return r;
+      if (v.isString()) {
+        const char* str = v.asCString();
+        size_t r = 1;
+        while (*str) {
+          r = (r * 17) + (*str);
+          ++str;
+        }
+        return r;
+      }
+      LOG(INFO) << v;
+      return 0;
     }
-    LOG(INFO) << v;
-    return 0;
-  }
-};
+  };
 }
 
 class JsonValueNumberer {
@@ -241,9 +241,9 @@ private:
 #ifdef GRAPH_INFERENCE_STATS
 struct GraphInferenceStats {
   GraphInferenceStats()
-  : position_of_best_per_node_label(10),
-    position_of_best_per_arc_label(10),
-    label_candidates_per_node(10) {
+      : position_of_best_per_node_label(10),
+        position_of_best_per_arc_label(10),
+        label_candidates_per_node(10) {
   }
 
   SimpleHistogram position_of_best_per_node_label;
@@ -267,7 +267,7 @@ struct GraphInferenceStats {
 class GraphNodeAssignment : public Nice2Assignment {
 public:
   GraphNodeAssignment(const GraphQuery* query, LabelSet* label_set, int unknown_label)
-: query_(query), label_set_(label_set), unknown_label_(unknown_label) {
+    : query_(query), label_set_(label_set), unknown_label_(unknown_label) {
     assignments_.assign(query_->numberer_.size(), Assignment());
     penalties_.assign(assignments_.size(), LabelPenalty());
   }
@@ -280,16 +280,6 @@ public:
       if (assignments_[i].must_infer) {
         penalties_[i].label = assignments_[i].label;
         penalties_[i].penalty = penalty;
-      }
-    }
-  }
-
-  virtual void PrintInferredAssignments() override {
-    LOG(INFO) << assignments_.size();
-    for(uint i = 0; i < assignments_.size(); i++) {
-      const Assignment a = assignments_[i];
-      if (a.must_infer == true) {
-        LOG(INFO) << "Variable number: " << std::fixed << i << " Label: " << std::fixed << label_set_->GetLabelName(a.label);
       }
     }
   }
@@ -378,7 +368,7 @@ public:
           error_stats->errors_and_counts[StringPrintf(
               "%s -> %s",
               ref->assignments_[i].label == -1 ? "[none]" : label_set_->GetLabelName(ref->assignments_[i].label),
-                  assignments_[i].label == -1 ? "[keep-original]" : label_set_->GetLabelName(assignments_[i].label))]++;
+              assignments_[i].label == -1 ? "[keep-original]" : label_set_->GetLabelName(assignments_[i].label))]++;
         }
       }
     }
@@ -637,7 +627,7 @@ public:
         sum += feature_it->second.getValue();
       }
       VLOG(3) << " " << label_set_->GetLabelName(feature.a_) << " " << label_set_->GetLabelName(feature.b_) << " " << label_set_->GetLabelName(feature.type_)
-                  << " " << ((feature_it != features.end()) ? feature_it->second.getValue() : 0.0);
+          << " " << ((feature_it != features.end()) ? feature_it->second.getValue() : 0.0);
     }
     for (size_t i = 0; i < assignments_.size(); ++i) {
       sum -= GetNodePenalty(i);
@@ -848,9 +838,9 @@ public:
       if (arc.node_a == arc.node_b) continue;
       if (assignments_[arc.node_a].must_infer == false || assignments_[arc.node_b].must_infer == false) continue;
       if (static_cast<int>(query_->arcs_adjacent_to_node_[arc.node_a].size()) >
-      FLAGS_skip_per_arc_optimization_for_nodes_above_degree) continue;
+              FLAGS_skip_per_arc_optimization_for_nodes_above_degree) continue;
       if (static_cast<int>(query_->arcs_adjacent_to_node_[arc.node_b].size()) >
-      FLAGS_skip_per_arc_optimization_for_nodes_above_degree) continue;
+              FLAGS_skip_per_arc_optimization_for_nodes_above_degree) continue;
 
       // Get candidate labels for labels of node_a and node_b.
       const std::vector<std::pair<double, GraphFeature> >& candidates =
@@ -1053,7 +1043,7 @@ private:
 class LoopyBPInference {
 public:
   LoopyBPInference(const GraphNodeAssignment& a, const GraphInference& fweights)
-: a_(a), fweights_(fweights) {
+      : a_(a), fweights_(fweights) {
     node_label_to_score_.set_empty_key(IntPair(-1, -1));
     node_label_to_score_.set_deleted_key(IntPair(-2, -2));
     labels_at_node_.assign(a.assignments_.size(), std::vector<int>());
@@ -1106,7 +1096,7 @@ public:
         StringAppendF(&result, "  Label %s  -- %f:\n", a_.label_set_->GetLabelName(label), score.total_score);
         for (auto it = score.incoming_node_to_message.begin(); it != score.incoming_node_to_message.end(); ++it) {
           StringAppendF(&result, "    From %d: %s -- %f [ arc %f ]\n", it->first, a_.label_set_->GetLabelName(it->second.label), it->second.score,
-              a_.GetNodePairScore(fweights_, it->first, node, it->second.label, label));
+               a_.GetNodePairScore(fweights_, it->first, node, it->second.label, label));
         }
       }
     }
@@ -1157,7 +1147,7 @@ private:
   void PullMessagesFromAdjacentNodes() {
     for (int node = 0; node < static_cast<int>(a_.assignments_.size()); ++node) {
       for (int label : labels_at_node_[node]) {
-        //for (auto it = node_label_to_score_.begin(); it != node_label_to_score_.end(); ++it) {
+      //for (auto it = node_label_to_score_.begin(); it != node_label_to_score_.end(); ++it) {
         auto it = node_label_to_score_.find(IntPair(node, label));
         if (it == node_label_to_score_.end()) continue;
         //int node = it->first.first;
@@ -1170,7 +1160,7 @@ private:
           score.total_score += score_improve;
           old_msg = new_msg;
         }
-        //}
+      //}
       }
     }
   }
@@ -1414,8 +1404,8 @@ void GraphInference::PerformAssignmentOptimization(GraphNodeAssignment* a) const
 }
 
 void GraphInference::MapInference(
-    const Nice2Query* query,
-    Nice2Assignment* assignment) const {
+      const Nice2Query* query,
+      Nice2Assignment* assignment) const {
   GraphNodeAssignment* a = static_cast<GraphNodeAssignment*>(assignment);
   PerformAssignmentOptimization(a);
 }
@@ -1431,10 +1421,14 @@ void GraphInference::UpdateStats(
     PrecisionStats *stats,
     const double margin) {
 
-  int correct_labels = 0, incorrect_labels = 0;
+  int correct_labels = 0, incorrect_labels = 0, num_known_predictions = 0;
   for (size_t i = 0; i < new_assignment.assignments_.size(); ++i) {
     if (new_assignment.assignments_[i].must_infer) {
-      if (new_assignment.assignments_[i].label == assignment.assignments_[i].label) {
+      if (new_assignment.assignments_[i].label != unknown_label_) {
+        ++num_known_predictions;
+      }
+      if (new_assignment.assignments_[i].label == assignment.assignments_[i].label &&
+          new_assignment.assignments_[i].label != unknown_label_) {
         ++correct_labels;
       } else {
         ++incorrect_labels;
@@ -1445,13 +1439,15 @@ void GraphInference::UpdateStats(
     std::lock_guard<std::mutex> guard(stats->lock);
     stats->correct_labels += correct_labels;
     stats->incorrect_labels += incorrect_labels;
+    stats->num_known_predictions += num_known_predictions;
     ++num_svm_training_samples_;
     if (num_svm_training_samples_ % 10000 == 0) {
       double error_rate = stats->incorrect_labels / (static_cast<double>(stats->incorrect_labels + stats->correct_labels));
-      LOG(INFO) << "At training sample " << num_svm_training_samples_ << ": error rate of " << std::fixed << error_rate;
+      double recall = stats->num_known_predictions / (static_cast<double>(stats->incorrect_labels + stats->correct_labels));
+      LOG(INFO) << "At training sample " << num_svm_training_samples_ << ": error rate of " << std::fixed << error_rate
+          << " . Recall " << std::fixed << recall;
     }
   }
-
 }
 
 void GraphInference::InitializeFeatureWeights(double regularization) {
