@@ -44,8 +44,8 @@ DEFINE_int32(skip_per_arc_optimization_for_nodes_above_degree, 32,
 
 DEFINE_string(valid_labels, "valid_names.txt", "A file describing valid names");
 DEFINE_string(unknown_label,
-    "__UNK__", "A special label that denotes that a label is of low frequency (and thus unknown).");
-DEFINE_int32(min_freq_known_label, 2,
+    "", "A special label that denotes that a label is of low frequency (and thus unknown).");
+DEFINE_int32(min_freq_known_label, 0,
     "Minimum number of graphs a label must appear it in order to not be declared unknown");
 
 static const size_t kInitialAssignmentBeamSize = 4;
@@ -1034,10 +1034,10 @@ void GraphInference::LoadModel(const std::string& file_prefix) {
     int a, b, size;
     label_frequency_.clear();
     FILE* lffile = fopen(StringPrintf("%s_lfreq", file_prefix.c_str()).c_str(), "rb");
-    CHECK_EQ(1, fread(&size, sizeof(int), 1, lffile) != 1);
+    CHECK_EQ(1, fread(&size, sizeof(int), 1, lffile));
     for (int i = 0; i < size; ++i) {
-      CHECK_EQ(1, fread(&a, sizeof(int), 1, lffile) != 1);
-      CHECK_EQ(1, fread(&b, sizeof(int), 1, lffile) != 1);
+      CHECK_EQ(1, fread(&a, sizeof(int), 1, lffile));
+      CHECK_EQ(1, fread(&b, sizeof(int), 1, lffile));
       label_frequency_[a] = b;
     }
     CHECK_EQ(static_cast<int>(label_frequency_.size()), size);
@@ -1365,7 +1365,7 @@ void GraphInference::PrepareForInference() {
     label_checker_.Load(FLAGS_valid_labels, &strings_);
     LOG(INFO) << "LabelChecker loaded";
   }
-  if (FLAGS_min_freq_known_label > 0) {
+  if (unknown_label_ >= 0 && FLAGS_min_freq_known_label > 0) {
     LOG(INFO) << "Replacing rare labels with unknown label " << FLAGS_unknown_label << " ...";
     {
       google::dense_hash_map<int, int> updated_freq;
