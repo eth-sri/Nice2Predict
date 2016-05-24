@@ -75,30 +75,6 @@ namespace std {
 }
 
 namespace std {
-  template <> struct hash<std::set<int>> {
-    size_t operator()(const std::set<int>& x) const {
-      int hc = x.size();
-      for (auto var = x.begin(); var != x.end(); var++) {
-        hc = hc * 6037 + *var;
-      }
-      return hc;
-    }
-  };
-}
-
-namespace std { namespace tr1 {
-  template <> struct hash<std::set<int>> {
-    size_t operator()(const std::set<int>& x) const {
-      int hc = x.size();
-      for (auto var = x.begin(); var != x.end(); var++) {
-        hc = hc * 6037 + *var;
-      }
-      return hc;
-    }
-  };
-}}
-
-namespace std {
   template <> struct hash<std::multiset<int>> {
     size_t operator()(const std::multiset<int>& x) const {
       int hc = x.size();
@@ -109,17 +85,5 @@ namespace std {
     }
   };
 }
-
-namespace std { namespace tr1 {
-  template <> struct hash<std::multiset<int>> {
-    size_t operator()(const std::multiset<int>& x) const {
-      int hc = x.size();
-      for (auto var = x.begin(); var != x.end(); var++) {
-        hc = hc * 6037 + *var;
-      }
-      return hc;
-    }
-  };
-}}
 
 #endif /* BASE_MAPUTIL_H_ */

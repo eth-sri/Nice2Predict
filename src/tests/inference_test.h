@@ -168,7 +168,6 @@ TEST(MapInferenceTest, GivesCorrectPermutationOfFactorFeatureTestGivenOneVarInf)
 
   unit_under_test.MapInference(query, assignment);
 
-
   const std::string ref_data_sample = "{\"query\":[{\"group\":[1,2,3]}]," \
       "\"assign\":[{\"v\":0,\"inf\":\"base\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
       "{\"v\":2,\"inf\":\"props\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";

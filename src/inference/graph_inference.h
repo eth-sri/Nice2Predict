@@ -28,8 +28,6 @@
 #include "maputil.h"
 #include "label_checker.h"
 
-//TODO delete this
-#include "glog/logging.h"
 
 typedef std::multiset<int> Factor;
 
@@ -68,7 +66,7 @@ struct FactorFeaturesLevel {
     }
   }
 
-  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, int beam_size) {
+  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, uint beam_size) {
     if (factor_features.size() < beam_size || next_level.empty()) {
       for (auto it = factor_features.begin(); it != factor_features.end(); it++) {
         candidates->push_back(it->second);
@@ -79,22 +77,6 @@ struct FactorFeaturesLevel {
       if (next_level.count(next_level_label) > 0) {
         next_level[next_level_label]->GetFactors(giv_labels, current_depth + 1, *it, candidates, beam_size);
       }
-    }
-  }
-
-  // TODO Delete this
-  void PrintAllFactorFeatures(int depth) {
-    LOG(INFO) << "Level: " << depth;
-    for (auto it = factor_features.begin(); it != factor_features.end(); it++) {
-      LOG(INFO) << "Feature Weight: " << it->first;
-      for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
-        LOG(INFO) << *it2;
-      }
-    }
-
-    for (auto it = next_level.begin(); it != next_level.end(); it++) {
-      LOG(INFO) << "next_level_key: " << it->first;
-      it->second->PrintAllFactorFeatures(depth + 1);
     }
   }
 
@@ -203,7 +185,6 @@ private:
   friend class LoopyBPInference;
 
   void PerformAssignmentOptimization(GraphNodeAssignment* a) const;
-  void PrintAllFeatures();
 
   typedef google::dense_hash_map<GraphFeature, LockFreeWeights> FeaturesMap;
   typedef google::dense_hash_map<GraphFeature, double> SimpleFeaturesMap;
@@ -217,9 +198,6 @@ private:
   std::unordered_map<Factor, std::vector<std::pair<double, int>>> best_factor_features_;
 
   std::unordered_map<int, FactorFeaturesLevel> best_factor_features_first_level_;
-//  std::unordered_map<int, std::vector<std::pair<double, Factor>>> best_factor_features_for_factor_size_;
-//  std::unordered_map<int, LabelFactorsMap> best_factor_features_depth_one_;
-//  std::unordered_map<int, std::unordered_map<int, LabelFactorsMap>> best_factor_features_depth_two_;
 
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   google::dense_hash_map<int, int> label_frequency_;
