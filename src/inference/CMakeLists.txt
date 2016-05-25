@@ -13,4 +13,4 @@ SET(INFERENCE_CPP
     label_checker.cpp)
 
 ADD_LIBRARY(inference ${INFERENCE_H} ${INFERENCE_CPP})
-TARGET_LINK_LIBRARIES(inference base tests gflags glog jsoncpp)
+TARGET_LINK_LIBRARIES(inference base gflags glog jsoncpp)

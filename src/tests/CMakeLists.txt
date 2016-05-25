@@ -4,9 +4,7 @@ cmake_minimum_required(VERSION 2.8)
 INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/base)
 INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/inference)
 
-SET(TESTS_H
-    factor_features_level_test.h
-    inference_test.h)
+SET(TESTS_H)
 
 SET(TESTS_CPP
     unit_tests.cpp)

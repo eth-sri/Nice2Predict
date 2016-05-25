@@ -31,6 +31,31 @@
 
 typedef std::multiset<int> Factor;
 
+
+namespace std {
+  template <> struct hash<std::vector<int>> {
+    size_t operator()(const std::vector<int>& x) const {
+      int hc = x.size();
+      for (unsigned int i = 0; i < x.size(); i++) {
+        hc = hc * 6037 + x[i];
+      }
+      return hc;
+    }
+  };
+}
+
+namespace std {
+  template <> struct hash<std::multiset<int>> {
+    size_t operator()(const std::multiset<int>& x) const {
+      int hc = x.size();
+      for (auto var = x.begin(); var != x.end(); var++) {
+        hc = hc * 6037 + *var;
+      }
+      return hc;
+    }
+  };
+}
+
 struct NodeConfusionStats {
   NodeConfusionStats() : num_non_confusable_nodes(0), num_confusable_nodes(0), num_expected_confusions(0) { }
 
@@ -54,7 +79,7 @@ struct FactorFeaturesLevel {
       visited_labels.insert(current_label);
     }
     if (current_depth < maximum_depth && visited_labels.size() < f.size()) {
-      for (auto it = f.begin(); it != f.end(); it++) {
+      for (auto it = f.begin(); it != f.end(); ++it) {
         if ((visited_labels.count(*it) + next_level_labels_visited.count(*it)) < f.count(*it)) {
           next_level_labels_visited.insert(*it);
           if (next_level.count(*it) == 0) {
@@ -66,9 +91,9 @@ struct FactorFeaturesLevel {
     }
   }
 
-  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, uint beam_size) {
+  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) {
     if (factor_features.size() < beam_size || next_level.empty()) {
-      for (auto it = factor_features.begin(); it != factor_features.end(); it++) {
+      for (auto it = factor_features.begin(); it != factor_features.end(); ++it) {
         candidates->push_back(it->second);
       }
     } else {
@@ -82,7 +107,7 @@ struct FactorFeaturesLevel {
 
   void SortFactorFeatures() {
     std::sort(factor_features.begin(), factor_features.end(), std::greater<std::pair<double, Factor> >());
-    for (auto it = next_level.begin(); it != next_level.end(); it++) {
+    for (auto it = next_level.begin(); it != next_level.end(); ++it) {
       it->second->SortFactorFeatures();
     }
   }

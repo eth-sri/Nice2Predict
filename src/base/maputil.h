@@ -62,28 +62,4 @@ namespace std {
   };
 }
 
-namespace std {
-  template <> struct hash<std::vector<int>> {
-    size_t operator()(const std::vector<int>& x) const {
-      int hc = x.size();
-      for (unsigned int i = 0; i < x.size(); i++) {
-        hc = hc * 6037 + x[i];
-      }
-      return hc;
-    }
-  };
-}
-
-namespace std {
-  template <> struct hash<std::multiset<int>> {
-    size_t operator()(const std::multiset<int>& x) const {
-      int hc = x.size();
-      for (auto var = x.begin(); var != x.end(); var++) {
-        hc = hc * 6037 + *var;
-      }
-      return hc;
-    }
-  };
-}
-
 #endif /* BASE_MAPUTIL_H_ */
