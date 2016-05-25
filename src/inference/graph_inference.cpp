@@ -902,10 +902,10 @@ public:
       GetFactorCandidates(fweights, factor.size(), &factors, giv_labels, beam_size);
       double best_score = 0;
       std::vector<int> best_assignments;
-      best_assignments.reserve(inf_vars.size());
+      best_assignments.assign(inf_vars.size(), 0);
       for (size_t j = 0; j < inf_vars.size(); ++j) {
         best_score += GetNodeScore(fweights, inf_vars[j]);
-        best_assignments.push_back(assignments_[inf_vars[j]].label);
+        best_assignments[j] = assignments_[inf_vars[j]].label;
       }
       std::vector<Factor> factors_candidates;
       for (size_t j = 0; j < factors.size(); ++j) {
@@ -957,10 +957,10 @@ public:
           }
           double score = 0;
           std::vector<int> assignment;
-          assignment.reserve(inf_vars.size());
+          assignment.assign(inf_vars.size(), 0);
           for (size_t z = 0; z < inf_vars.size(); ++z) {
             score += GetNodeScore(fweights, inf_vars[z]);
-            assignment.push_back(assignments_[inf_vars[z]].label);
+            assignment[z] = assignments_[inf_vars[z]].label;
           }
           if (score > best_score) {
             best_assignments = assignment;
