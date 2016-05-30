@@ -1205,7 +1205,6 @@ void GraphInference::LoadModel(const std::string& file_prefix) {
   int num_features = 0;
   int num_factor_features = 0;
   CHECK_EQ(1, fread(&num_features, sizeof(int), 1, ffile));
-  CHECK_EQ(1, fread(&num_factor_features, sizeof(int), 1, ffile));
   for (int i = 0; i < num_features; ++i) {
     GraphFeature f(0, 0, 0);
     double score;
@@ -1213,18 +1212,22 @@ void GraphInference::LoadModel(const std::string& file_prefix) {
     CHECK_EQ(1, fread(&score, sizeof(double), 1, ffile));
     features_[f].setValue(score);
   }
-  for (int i = 0; i < num_factor_features; ++i) {
-    Factor f;
-    int size_of_factor = 0;
-    CHECK_EQ(1, fread(&size_of_factor, sizeof(int), 1, ffile));
-    for (int j = 0; j < size_of_factor; ++j) {
-      int f_var = -1;
-      CHECK_EQ(1, fread(&f_var, sizeof(int), 1, ffile));
-      f.insert(f_var);
+
+  int ret = fread(&num_factor_features, sizeof(int), 1, ffile);
+  if (ret == 1) {
+    for (int i = 0; i < num_factor_features; ++i) {
+      Factor f;
+      int size_of_factor = 0;
+      CHECK_EQ(1, fread(&size_of_factor, sizeof(int), 1, ffile));
+      for (int j = 0; j < size_of_factor; ++j) {
+        int f_var = -1;
+        CHECK_EQ(1, fread(&f_var, sizeof(int), 1, ffile));
+        f.insert(f_var);
+      }
+      double score;
+      CHECK_EQ(1, fread(&score, sizeof(double), 1, ffile));
+      factor_features_[f] = score;
     }
-    double score;
-    CHECK_EQ(1, fread(&score, sizeof(double), 1, ffile));
-    factor_features_[f] = score;
   }
   fclose(ffile);
   CHECK_EQ(features_.size(), num_features);
@@ -1258,12 +1261,13 @@ void GraphInference::SaveModel(const std::string& file_prefix) {
   int num_features = features_.size();
   int num_factor_features = factor_features_.size();
   fwrite(&num_features, sizeof(int), 1, ffile);
-  fwrite(&num_factor_features, sizeof(int), 1, ffile);
   for (auto it = features_.begin(); it != features_.end(); ++it) {
     fwrite(&it->first, sizeof(GraphFeature), 1, ffile);
     double value = it->second.getValue();
     fwrite(&value, sizeof(double), 1, ffile);
   }
+
+  fwrite(&num_factor_features, sizeof(int), 1, ffile);
   for (auto f = factor_features_.begin(); f != factor_features_.end(); ++f) {
     int size_of_factor = f->first.size();
     fwrite(&size_of_factor, sizeof(int), 1, ffile);

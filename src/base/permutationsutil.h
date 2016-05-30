@@ -19,6 +19,7 @@
 
 #include <limits>
 
+// permutations_beam_size is the maximum number of permutations that the method returns
 void ComputeAllPermutations(std::vector<int> v,
     std::unordered_set<std::vector<int>>* permutations,
     int n,
@@ -44,6 +45,8 @@ void ComputeAllPermutations(std::vector<int> v,
   }
 }
 
+// max_num_duplicates determines the max number of random duplicate permutations after which the algorithm stops even though it did not
+// computed all the require permutations. This is necessary in order to avoid that the function ends up in an infinite loop
 void ComputeRandomPermutations(std::vector<int> v,
     std::unordered_set<std::vector<int>>* permutations,
     size_t permutations_beam_size,
