@@ -24,7 +24,6 @@
 
 // Abstract classes for inference.
 
-
 // A single query to be asked.
 class Nice2Query {
 public:
@@ -129,7 +128,6 @@ public:
 
   // Must be called [at least] once before calling SSVMLearn or MapInference.
   virtual void PrepareForInference() = 0;
-
 
   // DEBUG methods.
   // Given a query and an assignment, return a graph to visualize the query.

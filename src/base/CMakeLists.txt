@@ -7,7 +7,8 @@ SET(BASE_H
     stringset.h
     fileutil.h
     strutil.h
-    termcolor.h)
+    termcolor.h
+    permutationsutil.h)
 SET(BASE_CPP
     base.cpp
     stringprintf.cpp

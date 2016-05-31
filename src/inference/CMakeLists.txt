@@ -6,6 +6,7 @@ SET(INFERENCE_H
     graph_inference.h
     inference.h
     label_checker.h)
+    
 SET(INFERENCE_CPP
     graph_inference.cpp
     inference.cpp

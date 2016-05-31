@@ -11,3 +11,10 @@ ADD_SUBDIRECTORY(base)
 ADD_SUBDIRECTORY(inference)
 ADD_SUBDIRECTORY(training)
 ADD_SUBDIRECTORY(server)
+ADD_SUBDIRECTORY(tests)
+
+option(test "Build all tests." OFF)
+
+if (test)
+  enable_testing()
+endif()
