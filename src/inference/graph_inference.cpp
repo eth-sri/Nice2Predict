@@ -911,7 +911,7 @@ public:
       for (size_t j = 0; j < factors.size(); ++j) {
         int factor_matches_giv_vars = true;
         for (auto label = giv_labels.begin(); label != giv_labels.end(); ++label) {
-          if (factors[j].count(*label) == 0) {
+          if (factors[j].count(*label) < giv_labels.count(*label)) {
             factor_matches_giv_vars = false;
             break;
           }
@@ -922,14 +922,18 @@ public:
       }
       for (size_t j = 0; j < factors_candidates.size(); ++j) {
         Factor current_candidate = factors_candidates[j];
-        std::set<int> distinct_labels;
+        std::unordered_map<int,int> distinct_labels;
         std::vector<int> candidate_inf_labels;
         candidate_inf_labels.reserve(current_candidate.size());
         std::unordered_set<std::vector<int>> permutations;
         for (auto label = current_candidate.begin(); label != current_candidate.end(); ++label) {
-          if (giv_labels.count(*label) == 0) {
+          if (giv_labels.count(*label) + distinct_labels[*label] <= current_candidate.count(*label)) {
             candidate_inf_labels.push_back(*label);
-            distinct_labels.insert(*label);
+            if (distinct_labels.count(*label) == 0) {
+              distinct_labels[*label] = 1;
+            } else {
+              distinct_labels[*label] += 1;
+            }
           }
         }
         uint64 num_permutations = CalculateFactorial(distinct_labels.size());
