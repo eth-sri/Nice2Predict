@@ -909,7 +909,7 @@ public:
       }
       std::vector<Factor> factors_candidates;
       for (size_t j = 0; j < factors.size(); ++j) {
-        int factor_matches_giv_vars = true;
+        bool factor_matches_giv_vars = true;
         for (auto label = giv_labels.begin(); label != giv_labels.end(); ++label) {
           if (factors[j].count(*label) < giv_labels.count(*label)) {
             factor_matches_giv_vars = false;
