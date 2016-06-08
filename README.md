@@ -16,8 +16,11 @@ To compile, first install dependencies (on Ubuntu 14.04):
 Install Google SparseHash 2.0.2:
 https://github.com/sparsehash/sparsehash
 
-And then install json-rpc-cpp from:
+Install json-rpc-cpp from:
 https://github.com/cinemast/libjson-rpc-cpp
+
+And then install GTest following this guide on Ubuntu:
+http://www.eriksmistad.no/getting-started-with-google-test-on-ubuntu/
 
 [Optional] Install Google Performance Tools:
 
