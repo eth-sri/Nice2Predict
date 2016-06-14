@@ -47,7 +47,7 @@ DEFINE_int32(skip_per_arc_optimization_for_nodes_above_degree, 32,
     "Skip the per-arc optimization pass if an edge is connected to a node with the in+out degree more than the given value");
 
 DEFINE_int32(maximum_depth, 2, "Maximum depth when looking for factor candidates");
-DEFINE_int32(factors_limit, 64, "Factors limit before which stop to go deeper");
+DEFINE_int32(factors_limit, 4, "Factors limit before which stop to go deeper");
 DEFINE_uint64(permutations_beam_size, 64, "Permutations beam size");
 
 DEFINE_string(valid_labels, "valid_names.txt", "A file describing valid names");

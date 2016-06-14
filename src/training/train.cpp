@@ -60,7 +60,7 @@ DEFINE_string(training_method, SSVM_TRAIN_NAME, "Training method to be used.");
 
 DEFINE_int32(num_pass_change_training,  10, "When using pseudolikelihood combined with SSVM for the training, this indicates after which pass change the training to SSVM");
 DEFINE_double(initial_learning_rate_ssvm, 0.1, "Initial learning rate of SSVM in the combined version.");
-DEFINE_string(learning_rate_update_formula_pl, NO_LEARN_RATE_UPDATE_PL,"Learning update formula for PL learning. ");
+DEFINE_string(learning_rate_update_formula_pl, PROP_PASS_LEARN_RATE_UPDATE_PL,"Learning update formula for PL learning. ");
 DEFINE_double(pl_lambda, 1.0, "Lambda used in the formula for computing the learning rate proportional to the training pass and the initial learning rate.");
 
 typedef std::function<void(const Json::Value&, const Json::Value&)> InputProcessor;
