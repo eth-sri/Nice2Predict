@@ -19,52 +19,6 @@
 
 #include <limits>
 
-// permutations_beam_size is the maximum number of permutations that the method returns
-void ComputeAllPermutations(std::vector<int> v,
-    std::unordered_set<std::vector<int>>* permutations,
-    int n,
-    size_t permutations_beam_size) {
-  std::vector<size_t> count;
-  count.assign(v.size(), 0);
-  permutations->insert(v);
-  for (size_t i = 1; i < v.size();) {
-    if (count[i] < i) {
-      int swap = i % 2 * count[i];
-      int tmp = v[swap];
-      v[swap] = v[i];
-      v[i] = tmp;
-      permutations->insert(v);
-      if (permutations->size() > permutations_beam_size) {
-        break;
-      }
-      count[i]++;
-      i = 1;
-    } else {
-      count[i++] = 0;
-    }
-  }
-}
-
-// max_num_duplicates determines the max number of random duplicate permutations after which the algorithm stops even though it did not
-// computed all the require permutations. This is necessary in order to avoid that the function ends up in an infinite loop
-void ComputeRandomPermutations(std::vector<int> v,
-    std::unordered_set<std::vector<int>>* permutations,
-    size_t permutations_beam_size,
-    size_t max_num_duplicates) {
-  std::random_device rd;
-  std::mt19937 g(rd());
-  size_t num_duplicates = 0;
-  while (permutations->size() < permutations_beam_size
-      && num_duplicates < max_num_duplicates) {
-    std::shuffle(v.begin(), v.end(), g);
-    if (permutations->count(v) == 0) {
-      permutations->insert(v);
-    } else {
-      num_duplicates++;
-    }
-  }
-}
-
 // returns -1 if the result will overflow
 uint64 CalculateFactorial(int n) {
   uint64 result = 1;

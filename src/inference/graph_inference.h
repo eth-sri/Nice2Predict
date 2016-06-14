@@ -22,6 +22,7 @@
 #include <string.h>
 #include <iterator>
 
+#include "base.h"
 #include "inference.h"
 #include "lock_free_weight.h"
 #include "stringset.h"
@@ -30,7 +31,6 @@
 
 
 typedef std::multiset<int> Factor;
-
 
 namespace std {
   template <> struct hash<std::vector<int>> {
@@ -214,9 +214,11 @@ private:
   typedef google::dense_hash_map<GraphFeature, LockFreeWeights> FeaturesMap;
   typedef google::dense_hash_map<GraphFeature, double> SimpleFeaturesMap;
   typedef std::unordered_map<Factor, double> FactorFeaturesMap;
+  typedef std::unordered_map<uint64, double> Uint64FactorFeaturesMap;
   // std::unordered_map<GraphFeature, double> features_;
   FeaturesMap features_;
   FactorFeaturesMap factor_features_;
+  Uint64FactorFeaturesMap factor_features_for_score_;
 
   //google::dense_hash_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
