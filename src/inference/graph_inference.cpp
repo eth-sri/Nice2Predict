@@ -563,9 +563,6 @@ public:
     v = FindWithDefault(fweights.best_factor_features_first_level_, factor_size, empty_level);
     auto it = giv_labels.begin();
     v.GetFactors(giv_labels, 0, *it, candidates, beam_size);
-    for (size_t i = 0; i < v.factor_features.size() && i < beam_size; ++i) {
-      candidates->push_back(v.factor_features[i].second);
-    }
   }
 
   void GetLabelCandidates(const GraphInference& fweights, int node,
@@ -662,12 +659,13 @@ public:
   void GetAffectedFactorFeatures(
       GraphInference::FactorFeaturesMap* affected_factor_features,
       double gradient_weight) const {
+    Factor f;
     for (const Factor& factor : query_->factors_) {
-      Factor f;
       for (auto var = factor.begin(); var != factor.end(); ++var) {
         f.insert(assignments_[*var].label);
       }
       (*affected_factor_features)[f] += gradient_weight;
+      f.clear();
     }
   }
   // Method that given a certain node and a label, first assign that label to the given node and then add the gradient_weight
@@ -700,13 +698,14 @@ public:
       int label,
       double gradient_weight) const {
     int node_label = label;
+    Factor f_key;
     for (const Factor& f : query_->factors_of_a_node_[node]) {
-      Factor f_key;
       f_key.insert(node_label);
       for (auto var = f.begin(); var != f.end(); ++var) {
         f_key.insert(assignments_[(*var)].label);
       }
       (*factor_affected_features)[f_key] += gradient_weight;
+      f_key.clear();
     }
   }
 
@@ -931,8 +930,6 @@ public:
         std::unordered_map<int,int> distinct_labels;
         std::vector<int> candidate_inf_labels;
         candidate_inf_labels.reserve(factors_candidates[j].size());
-        std::vector<std::vector<int>> permutations;
-        permutations.reserve(FLAGS_permutations_beam_size);
         for (auto label = factors_candidates[j].begin(); label != factors_candidates[j].end(); ++label) {
           if (giv_labels.count(*label) + distinct_labels[*label] <= factors_candidates[j].count(*label)) {
             candidate_inf_labels.push_back(*label);
@@ -998,14 +995,13 @@ public:
       return;
     }
     double score = 0;
-    std::vector<int> assignment;
-    assignment.assign(inf_vars.size(), 0);
     for (size_t z = 0; z < inf_vars.size(); ++z) {
       score += GetNodeScore(fweights, inf_vars[z]);
-      assignment[z] = assignments_[inf_vars[z]].label;
     }
     if (score > best_score) {
-      best_assignments = assignment;
+      for (size_t z = 0; z < inf_vars.size(); ++z) {
+        best_assignments[z] = assignments_[inf_vars[z]].label;
+      }
       best_score = score;
     }
   }

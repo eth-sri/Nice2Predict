@@ -93,7 +93,7 @@ struct FactorFeaturesLevel {
 
   void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) {
     if (factor_features.size() < beam_size || next_level.empty() || giv_labels.empty()) {
-      for (auto it = factor_features.begin(); it != factor_features.end(); ++it) {
+      for (auto it = factor_features.begin(); it != factor_features.end() && candidates->size() < beam_size; ++it) {
         candidates->push_back(it->second);
       }
     } else {
