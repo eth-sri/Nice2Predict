@@ -559,8 +559,7 @@ public:
       Factor& giv_labels,
       size_t beam_size) {
     FactorFeaturesLevel empty_level;
-    FactorFeaturesLevel v;
-    v = FindWithDefault(fweights.best_factor_features_first_level_, factor_size, empty_level);
+    const FactorFeaturesLevel& v = FindWithDefault(fweights.best_factor_features_first_level_, factor_size, empty_level);
     auto it = giv_labels.begin();
     v.GetFactors(giv_labels, 0, *it, candidates, beam_size);
   }
@@ -659,13 +658,12 @@ public:
   void GetAffectedFactorFeatures(
       GraphInference::FactorFeaturesMap* affected_factor_features,
       double gradient_weight) const {
-    Factor f;
     for (const Factor& factor : query_->factors_) {
+      Factor f;
       for (auto var = factor.begin(); var != factor.end(); ++var) {
         f.insert(assignments_[*var].label);
       }
       (*affected_factor_features)[f] += gradient_weight;
-      f.clear();
     }
   }
   // Method that given a certain node and a label, first assign that label to the given node and then add the gradient_weight
@@ -698,14 +696,13 @@ public:
       int label,
       double gradient_weight) const {
     int node_label = label;
-    Factor f_key;
     for (const Factor& f : query_->factors_of_a_node_[node]) {
+      Factor f_key;
       f_key.insert(node_label);
       for (auto var = f.begin(); var != f.end(); ++var) {
         f_key.insert(assignments_[(*var)].label);
       }
       (*factor_affected_features)[f_key] += gradient_weight;
-      f_key.clear();
     }
   }
 
@@ -1222,6 +1219,8 @@ GraphInference::GraphInference() : unknown_label_(-1), regularizer_(1.0), svm_ma
   features_.set_deleted_key(GraphFeature(-2, -2, -2));
   best_features_for_type_.set_empty_key(-1);
   best_features_for_type_.set_deleted_key(-2);
+  best_factor_features_first_level_.set_empty_key(-1);
+  best_factor_features_first_level_.set_deleted_key(-2);
   label_frequency_.set_empty_key(-1);
   label_frequency_.set_deleted_key(-2);
 }
