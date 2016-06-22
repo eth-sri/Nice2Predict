@@ -919,7 +919,7 @@ public:
       std::vector<Factor> factors;
       GetFactorCandidates(fweights, factor.size(), &factors, giv_labels, beam_size);
       double best_score = 0;
-      std::vector<int> best_assignments = std::vector<int>(inf_nodes.size());
+      std::vector<int> best_assignments(inf_nodes.size());
       // Initialize the best score and best assignments with the current assignments on the to be inferred nodes
       // of the factor.
       for (size_t j = 0; j < inf_nodes.size(); ++j) {
@@ -980,21 +980,13 @@ public:
             current_num_permutation++;
           }
         } else {
-          std::vector<size_t> count = std::vector<size_t>(candidate_inf_labels.size());
           size_t current_num_permutations = 0;
-          for (size_t i = 1; i < candidate_inf_labels.size() && current_num_permutations < FLAGS_permutations_beam_size;) {
-            if (count[i] < i) {
-              int swap = i % 2 * count[i];
-              std::swap(candidate_inf_labels[swap], candidate_inf_labels[i]);
-              PerformPermutationOptimization(inf_nodes, fweights, candidate_inf_labels, &best_assignments, &best_score);
-              current_num_permutations++;
-              count[i]++;
-              i = 1;
-            } else {
-              i++;
-              count[i] = 0;
-            }
-          }
+          std::sort(candidate_inf_labels.begin(), candidate_inf_labels.end());
+          do {
+            PerformPermutationOptimization(inf_nodes, fweights, candidate_inf_labels, &best_assignments, &best_score);
+            current_num_permutations++;
+          } while(std::next_permutation(candidate_inf_labels.begin(), candidate_inf_labels.end()) &&
+                  current_num_permutations < FLAGS_permutations_beam_size);
         }
       }
       for (size_t j = 0; j < inf_nodes.size(); ++j) {
