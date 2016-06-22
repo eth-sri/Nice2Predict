@@ -893,6 +893,7 @@ public:
       std::vector<int> inf_vars;
       inf_vars.reserve(factor.size());
       Factor giv_labels;
+      // Separates between given and to be inferred.
       for (auto var = factor.begin(); var != factor.end(); ++var) {
         Assignment a = assignments_[(*var)];
         if (a.must_infer == true) {
@@ -910,16 +911,19 @@ public:
       double best_score = 0;
       std::vector<int> best_assignments;
       best_assignments.assign(inf_vars.size(), 0);
+      // Initialize the best score and best assignments with the current assignments on the to be inferred nodes
+      // of the factor.
       for (size_t j = 0; j < inf_vars.size(); ++j) {
         best_score += GetNodeScore(fweights, inf_vars[j]);
         best_assignments[j] = assignments_[inf_vars[j]].label;
       }
       std::vector<Factor> factors_candidates;
+      // Determines which of the factors match the given labels.
       for (size_t j = 0; j < factors.size(); ++j) {
         bool factor_matches_giv_vars = true;
         for (auto label = giv_labels.begin(); label != giv_labels.end(); ++label) {
-          // each given label contained in giv_labels needs to be present in the factor candidate at least the same number of times that it is contained
-          // in the given labels set
+          // Each given label contained in giv_labels needs to be present in the factor candidate at least the same number of times that it is contained
+          // in the given labels set.
           if (factors[j].count(*label) < giv_labels.count(*label)) {
             factor_matches_giv_vars = false;
             break;
@@ -929,26 +933,32 @@ public:
           factors_candidates.push_back(factors[j]);
         }
       }
+
+      // Go over all factors containing the labels in the "given" set, and create
+      // the initial permutation. It includes all labels in a factor that are not in the "given" set.
+      Factor giv_labels_copy = giv_labels;
       for (size_t j = 0; j < factors_candidates.size(); ++j) {
-        std::unordered_map<int,int> inserted_label_counts;
         std::vector<int> candidate_inf_labels;
         candidate_inf_labels.reserve(factors_candidates[j].size());
         for (auto label = factors_candidates[j].begin(); label != factors_candidates[j].end(); ++label) {
-          // a label is inserted in the candidate_inf_labels if it is not part of the labels that are given in the factor to be predicted
-          // as a consequence the sum between the number of times that a label is contained in giv_labels and the number of times that it has been
-          // inserted in candidate_inf_labels needs to be less or equal the total number of times that the label is contained in the factor candidate
-          if (giv_labels.count(*label) + inserted_label_counts[*label] <= factors_candidates[j].count(*label)) {
+          // Check if the label belongs to the "given" set.
+          if (giv_labels.count(*label) > 0) {
+            const auto& it = giv_labels.find(*label);
+            giv_labels.erase(it);
+          } else {
             candidate_inf_labels.push_back(*label);
-            inserted_label_counts[*label] += 1;
           }
         }
-        uint64 num_permutations = CalculateFactorial(inserted_label_counts.size());
-        // if the factorial will go in overflow it will return -1
+
+        // Perform assignment optimization on first permutation.
+        PerformPermutationOptimization(inf_vars, fweights, candidate_inf_labels, &best_assignments, &best_score);
+        uint64 num_permutations = CalculateFactorial(candidate_inf_labels.size());
+        // If the factorial will go in overflow it will return -1.
         if (num_permutations < 0 || num_permutations > FLAGS_permutations_beam_size) {
           size_t current_num_permutation = 0;
           while (current_num_permutation < FLAGS_permutations_beam_size) {
             std::random_shuffle(candidate_inf_labels.begin(), candidate_inf_labels.end());
-            PerformPermutationOptimization(inf_vars, fweights, candidate_inf_labels, best_assignments, best_score);
+            PerformPermutationOptimization(inf_vars, fweights, candidate_inf_labels, &best_assignments, &best_score);
             current_num_permutation++;
           }
         } else {
@@ -961,7 +971,7 @@ public:
               int tmp = candidate_inf_labels[swap];
               candidate_inf_labels[swap] = candidate_inf_labels[i];
               candidate_inf_labels[i] = tmp;
-              PerformPermutationOptimization(inf_vars, fweights, candidate_inf_labels, best_assignments, best_score);
+              PerformPermutationOptimization(inf_vars, fweights, candidate_inf_labels, &best_assignments, &best_score);
               current_num_permutations++;
               count[i]++;
               i = 1;
@@ -970,6 +980,7 @@ public:
             }
           }
         }
+        giv_labels = giv_labels_copy;
       }
       for (size_t j = 0; j < inf_vars.size(); ++j) {
         assignments_[inf_vars[j]].label = best_assignments[j];
@@ -977,34 +988,36 @@ public:
     }
   }
 
-  void PerformPermutationOptimization(const std::vector<int>& inf_vars,
-                                      const GraphInference& fweights,
-                                      const std::vector<int>& candidate_inf_labels,
-                                      std::vector<int>& best_assignments,
-                                      double& best_score) {
+  bool IsAssignmentValid(const std::vector<int>& inf_vars, const std::vector<int>& candidate_inf_labels,const GraphInference& fweights) const {
     bool is_assignment_valid = true;
     for (size_t z = 0; z < inf_vars.size(); ++z) {
       if (HasDuplicationConflictsAtNode(inf_vars[z]) ||
           !fweights.label_checker_.IsLabelValid(candidate_inf_labels[z])) {
-        is_assignment_valid = false;
-        break;
-      } else {
+        return false;
+      }
+    }
+    return is_assignment_valid;
+  }
+
+  void PerformPermutationOptimization(const std::vector<int>& inf_vars,
+                                      const GraphInference& fweights,
+                                      const std::vector<int>& candidate_inf_labels,
+                                      std::vector<int>* best_assignments,
+                                      double* best_score) {
+    if (IsAssignmentValid(inf_vars, candidate_inf_labels, fweights)) {
+      for (size_t z = 0; z < inf_vars.size(); ++z) {
         assignments_[inf_vars[z]].label = candidate_inf_labels[z];
       }
-    }
-
-    if (is_assignment_valid == false) {
-      return;
-    }
-    double score = 0;
-    for (size_t z = 0; z < inf_vars.size(); ++z) {
-      score += GetNodeScore(fweights, inf_vars[z]);
-    }
-    if (score > best_score) {
+      double score = 0;
       for (size_t z = 0; z < inf_vars.size(); ++z) {
-        best_assignments[z] = assignments_[inf_vars[z]].label;
+        score += GetNodeScore(fweights, inf_vars[z]);
       }
-      best_score = score;
+      if (score > *best_score) {
+        for (size_t z = 0; z < inf_vars.size(); ++z) {
+          (*best_assignments)[z] = assignments_[inf_vars[z]].label;
+        }
+        *best_score = score;
+      }
     }
   }
 

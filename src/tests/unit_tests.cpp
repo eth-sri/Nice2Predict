@@ -289,11 +289,11 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenAllInfVars)
 
 TEST(MapInferenceTest, GivesCorrectPermutationsOfFactorFeatureTestGivenDuplicateLabels) {
   const std::string training_data_sample = "{\"query\":[{\"group\":[0,1,2,3]}]," \
-      "\"assign\":[{\"v\":0,\"inf\":\"split\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+      "\"assign\":[{\"v\":0,\"inf\":\"split\"},{\"v\":1,\"giv\":\"split\"}," \
       "{\"v\":2,\"inf\":\"split\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
   const std::string data_sample = "{\"query\":[{\"group\":[0,1,2,3]}]," \
-      "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+      "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"split\"}," \
       "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
   Json::Reader jsonreader;
@@ -310,7 +310,7 @@ TEST(MapInferenceTest, GivesCorrectPermutationsOfFactorFeatureTestGivenDuplicate
 
 
   const std::string ref_data_sample_first_permutation = "{\"query\":[{\"group\":[0,1,2,3]}]," \
-      "\"assign\":[{\"v\":0,\"inf\":\"split\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+      "\"assign\":[{\"v\":0,\"inf\":\"split\"},{\"v\":1,\"giv\":\"split\"}," \
       "{\"v\":2,\"inf\":\"split\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
   std::vector<std::string> ref_data_samples;
   ref_data_samples.push_back(ref_data_sample_first_permutation);
