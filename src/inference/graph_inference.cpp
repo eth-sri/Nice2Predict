@@ -968,19 +968,16 @@ public:
         if (!is_assignment_label_valid) {
           continue;
         }
-        // Perform assignment optimization on the first permutation.
-        PerformPermutationOptimization(inf_nodes, fweights, candidate_inf_labels, &best_assignments, &best_score);
         uint64 num_permutations = CalculateFactorial(candidate_inf_labels.size());
         // If the factorial will go in overflow it will return -1.
+        size_t current_num_permutations = 0;
         if (num_permutations < 0 || num_permutations > FLAGS_permutations_beam_size) {
-          size_t current_num_permutation = 0;
-          while (current_num_permutation < FLAGS_permutations_beam_size) {
-            std::random_shuffle(candidate_inf_labels.begin(), candidate_inf_labels.end());
+          while (current_num_permutations < FLAGS_permutations_beam_size) {
             PerformPermutationOptimization(inf_nodes, fweights, candidate_inf_labels, &best_assignments, &best_score);
-            current_num_permutation++;
+            std::random_shuffle(candidate_inf_labels.begin(), candidate_inf_labels.end());
+            current_num_permutations++;
           }
         } else {
-          size_t current_num_permutations = 0;
           std::sort(candidate_inf_labels.begin(), candidate_inf_labels.end());
           do {
             PerformPermutationOptimization(inf_nodes, fweights, candidate_inf_labels, &best_assignments, &best_score);
