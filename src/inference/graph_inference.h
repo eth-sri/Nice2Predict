@@ -22,6 +22,7 @@
 #include <string.h>
 #include <iterator>
 
+#include "base.h"
 #include "inference.h"
 #include "lock_free_weight.h"
 #include "stringset.h"
@@ -30,7 +31,6 @@
 
 
 typedef std::multiset<int> Factor;
-
 
 namespace std {
   template <> struct hash<std::vector<int>> {
@@ -91,16 +91,19 @@ struct FactorFeaturesLevel {
     }
   }
 
-  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) {
-    if (factor_features.size() < beam_size || next_level.empty()) {
-      for (auto it = factor_features.begin(); it != factor_features.end(); ++it) {
+  void GetFactors(const Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) const {
+    if (factor_features.size() < beam_size || next_level.empty() || giv_labels.empty()) {
+      for (auto it = factor_features.begin(); it != factor_features.end() && candidates->size() < beam_size; ++it) {
         candidates->push_back(it->second);
       }
     } else {
       auto it = giv_labels.begin();
-      std::advance(it, current_depth - 1);
+      std::advance(it, current_depth);
       if (next_level.count(next_level_label) > 0) {
-        next_level[next_level_label]->GetFactors(giv_labels, current_depth + 1, *it, candidates, beam_size);
+        const auto& nl = next_level.find(next_level_label);
+        if (nl != next_level.end()) {
+          nl->second->GetFactors(giv_labels, current_depth + 1, *it, candidates, beam_size);
+        }
       }
     }
   }
@@ -214,15 +217,17 @@ private:
   typedef google::dense_hash_map<GraphFeature, LockFreeWeights> FeaturesMap;
   typedef google::dense_hash_map<GraphFeature, double> SimpleFeaturesMap;
   typedef std::unordered_map<Factor, double> FactorFeaturesMap;
+  typedef std::unordered_map<uint64, double> Uint64FactorFeaturesMap;
   // std::unordered_map<GraphFeature, double> features_;
   FeaturesMap features_;
   FactorFeaturesMap factor_features_;
+  Uint64FactorFeaturesMap factor_features_for_score_;
 
   //google::dense_hash_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<IntPair, std::vector<std::pair<double, int> > > best_features_for_a_type_, best_features_for_b_type_;
   std::unordered_map<Factor, std::vector<std::pair<double, int>>> best_factor_features_;
 
-  std::unordered_map<int, FactorFeaturesLevel> best_factor_features_first_level_;
+  google::dense_hash_map<int, FactorFeaturesLevel> best_factor_features_first_level_;
 
   google::dense_hash_map<int, std::vector<std::pair<double, GraphFeature> > > best_features_for_type_;
   google::dense_hash_map<int, int> label_frequency_;
