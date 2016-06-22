@@ -65,10 +65,7 @@ struct NodeConfusionStats {
 };
 
 struct FactorFeaturesLevel {
-  FactorFeaturesLevel() : factor_features(std::vector<std::pair<double, Factor>>()), next_level(google::dense_hash_map<int, std::shared_ptr<FactorFeaturesLevel>>()) {
-    next_level.set_empty_key(-1);
-    next_level.set_deleted_key(-2);
-  }
+  FactorFeaturesLevel() : factor_features(std::vector<std::pair<double, Factor>>()), next_level(std::unordered_map<int, std::shared_ptr<FactorFeaturesLevel>>()) {}
 
   ~FactorFeaturesLevel() {
     factor_features.clear();
@@ -94,7 +91,7 @@ struct FactorFeaturesLevel {
     }
   }
 
-  void GetFactors(Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) const {
+  void GetFactors(const Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) const {
     if (factor_features.size() < beam_size || next_level.empty() || giv_labels.empty()) {
       for (auto it = factor_features.begin(); it != factor_features.end() && candidates->size() < beam_size; ++it) {
         candidates->push_back(it->second);
@@ -119,7 +116,7 @@ struct FactorFeaturesLevel {
   }
 
   std::vector<std::pair<double, Factor>> factor_features;
-  google::dense_hash_map<int, std::shared_ptr<FactorFeaturesLevel>> next_level;
+  std::unordered_map<int, std::shared_ptr<FactorFeaturesLevel>> next_level;
 };
 
 class GraphFeature {

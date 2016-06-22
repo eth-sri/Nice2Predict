@@ -88,11 +88,15 @@ namespace std {
   };
 }
 
-uint64 HashInt(int x) {
+// http://stackoverflow.com/a/6867612
+// https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+uint64 HashInt(uint64 x) {
   x++;
-  x = ((x >> 16) ^ x) * 0x45d9f3b;
-  x = ((x >> 16) ^ x) * 0x45d9f3b;
-  x = ((x >> 16) ^ x);
+  x ^= x >> 33;
+  x *= 0xff51afd7ed558ccd;
+  x ^= x >> 33;
+  x *= 0xc4ceb9fe1a85ec53;
+  x ^= x >> 33;
   return x;
 }
 
@@ -419,9 +423,9 @@ public:
 
     for (size_t i = 0; i < query_->factors_of_a_node_[node].size(); ++i) {
       uint64 hash = HashInt(assignments_[node].label);
-      for (auto var = query_->factors_of_a_node_[node][i].begin();
-                var != query_->factors_of_a_node_[node][i].end(); ++var) {
-        hash += HashInt(assignments_[*var].label);
+      for (auto var_it = query_->factors_of_a_node_[node][i].begin();
+                var_it != query_->factors_of_a_node_[node][i].end(); ++var_it) {
+        hash += HashInt(assignments_[*var_it].label);
       }
 
       auto factor_feature = factor_features.find(hash);
@@ -554,10 +558,10 @@ public:
   }
 
   void GetFactorCandidates(const GraphInference& fweights,
-      int factor_size,
+      const int factor_size,
       std::vector<Factor>* candidates,
-      Factor& giv_labels,
-      size_t beam_size) {
+      const Factor& giv_labels,
+      const size_t beam_size) {
     FactorFeaturesLevel empty_level;
     const FactorFeaturesLevel& v = FindWithDefault(fweights.best_factor_features_first_level_, factor_size, empty_level);
     auto it = giv_labels.begin();
@@ -914,6 +918,8 @@ public:
       for (size_t j = 0; j < factors.size(); ++j) {
         bool factor_matches_giv_vars = true;
         for (auto label = giv_labels.begin(); label != giv_labels.end(); ++label) {
+          // each given label contained in giv_labels needs to be present in the factor candidate at least the same number of times that it is contained
+          // in the given labels set
           if (factors[j].count(*label) < giv_labels.count(*label)) {
             factor_matches_giv_vars = false;
             break;
@@ -924,20 +930,19 @@ public:
         }
       }
       for (size_t j = 0; j < factors_candidates.size(); ++j) {
-        std::unordered_map<int,int> distinct_labels;
+        std::unordered_map<int,int> inserted_label_counts;
         std::vector<int> candidate_inf_labels;
         candidate_inf_labels.reserve(factors_candidates[j].size());
         for (auto label = factors_candidates[j].begin(); label != factors_candidates[j].end(); ++label) {
-          if (giv_labels.count(*label) + distinct_labels[*label] <= factors_candidates[j].count(*label)) {
+          // a label is inserted in the candidate_inf_labels if it is not part of the labels that are given in the factor to be predicted
+          // as a consequence the sum between the number of times that a label is contained in giv_labels and the number of times that it has been
+          // inserted in candidate_inf_labels needs to be less or equal the total number of times that the label is contained in the factor candidate
+          if (giv_labels.count(*label) + inserted_label_counts[*label] <= factors_candidates[j].count(*label)) {
             candidate_inf_labels.push_back(*label);
-            if (distinct_labels.count(*label) == 0) {
-              distinct_labels[*label] = 1;
-            } else {
-              distinct_labels[*label] += 1;
-            }
+            inserted_label_counts[*label] += 1;
           }
         }
-        uint64 num_permutations = CalculateFactorial(distinct_labels.size());
+        uint64 num_permutations = CalculateFactorial(inserted_label_counts.size());
         // if the factorial will go in overflow it will return -1
         if (num_permutations < 0 || num_permutations > FLAGS_permutations_beam_size) {
           size_t current_num_permutation = 0;
