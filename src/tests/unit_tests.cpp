@@ -287,6 +287,44 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenAllInfVars)
   EXPECT_GE(2, precision_stats.incorrect_labels);
 }
 
+TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenOneGivVar) {
+  const std::string training_data_sample = "{\"query\":[{\"group\":[0,1,2]}]," \
+      "\"assign\":[{\"v\":0,\"inf\":\"base\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+      "{\"v\":2,\"inf\":\"props\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
+
+  const std::string data_sample = "{\"query\":[{\"group\":[0,1,2]}]," \
+      "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+      "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
+
+  Json::Reader jsonreader;
+  Json::Value data_sample_value;
+  jsonreader.parse(data_sample, data_sample_value, false);
+  GraphInference unit_under_test;
+  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  Nice2Query* query = unit_under_test.CreateQuery();
+  query->FromJSON(data_sample_value["query"]);
+  Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
+  assignment->FromJSON(data_sample_value["assign"]);
+
+  unit_under_test.MapInference(query, assignment);
+
+
+  const std::string ref_data_sample_first_permutation = "{\"query\":[{\"group\":[0,1,2]}]," \
+      "\"assign\":[{\"v\":0,\"inf\":\"base\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+      "{\"v\":2,\"inf\":\"props\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
+  const std::string ref_data_sample_second_permutation = "{\"query\":[{\"group\":[0,1,2]}]," \
+      "\"assign\":[{\"v\":0,\"inf\":\"props\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
+      "{\"v\":2,\"inf\":\"base\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
+  std::vector<std::string> ref_data_samples;
+  ref_data_samples.push_back(ref_data_sample_first_permutation);
+  ref_data_samples.push_back(ref_data_sample_second_permutation);
+  PrecisionStats precision_stats;
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+
+  // Since it either 1 of the two permutations the number of errors must be less than or equal to 2
+  EXPECT_GE(2, precision_stats.incorrect_labels);
+}
+
 TEST(MapInferenceTest, GivesCorrectPermutationsOfFactorFeatureTestGivenDuplicateLabels) {
   const std::string training_data_sample = "{\"query\":[{\"group\":[0,1,2,3]}]," \
       "\"assign\":[{\"v\":0,\"inf\":\"split\"},{\"v\":1,\"giv\":\"split\"}," \

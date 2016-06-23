@@ -91,18 +91,19 @@ struct FactorFeaturesLevel {
     }
   }
 
-  void GetFactors(const Factor& giv_labels, int current_depth, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) const {
-    if (factor_features.size() < beam_size || next_level.empty() || giv_labels.empty()) {
+  void GetFactors(Factor giv_labels, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) const {
+    if (next_level.empty() || giv_labels.empty()) {
       for (auto it = factor_features.begin(); it != factor_features.end() && candidates->size() < beam_size; ++it) {
         candidates->push_back(it->second);
       }
     } else {
       auto it = giv_labels.begin();
-      std::advance(it, current_depth);
+      giv_labels.erase(it);
+      it++;
       if (next_level.count(next_level_label) > 0) {
         const auto& nl = next_level.find(next_level_label);
         if (nl != next_level.end()) {
-          nl->second->GetFactors(giv_labels, current_depth + 1, *it, candidates, beam_size);
+          nl->second->GetFactors(giv_labels, *it, candidates, beam_size);
         }
       }
     }

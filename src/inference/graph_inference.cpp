@@ -575,7 +575,7 @@ public:
     FactorFeaturesLevel empty_level;
     const FactorFeaturesLevel& v = FindWithDefault(fweights.best_factor_features_first_level_, factor_size, empty_level);
     auto it = giv_labels.begin();
-    v.GetFactors(giv_labels, 0, *it, candidates, beam_size);
+    v.GetFactors(giv_labels, *it, candidates, beam_size);
   }
 
   void GetLabelCandidates(const GraphInference& fweights, int node,
