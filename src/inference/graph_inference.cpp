@@ -1724,6 +1724,7 @@ void GraphInference::PrepareForInference() {
   }
   num_svm_training_samples_ = 0;
 
+
   best_features_for_type_.clear();
   best_features_for_a_type_.clear();
   best_features_for_b_type_.clear();
@@ -1742,7 +1743,8 @@ void GraphInference::PrepareForInference() {
     Factor f = factor_feature->first;
     double feature_weight = factor_feature->second;
     Factor visited_labels;
-    best_factor_features_first_level_[f.size()].InsertFactorFeature(feature_weight, f, 0, FLAGS_maximum_depth, -1, visited_labels);
+    std::shared_ptr<std::pair<double, Factor>> factor_feature_shared_pointer = std::make_shared<std::pair<double, Factor>>(feature_weight, f);
+    best_factor_features_first_level_[f.size()].InsertFactorFeature(factor_feature_shared_pointer, f, 0, FLAGS_maximum_depth, -1, visited_labels);
 
 
     uint64 hash = 0;
