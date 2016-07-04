@@ -219,10 +219,10 @@ public:
       }
     }
 
-    factors_of_a_node_.assign(numberer_.size(), std::vector<Factor*>());
+    factors_of_a_node_.assign(numberer_.size(), std::vector<int>());
     for (size_t i = 0; i < factors_.size(); ++i) {
       for (auto var = factors_[i].begin(); var != factors_[i].end(); ++var) {
-        factors_of_a_node_[*var].push_back(&factors_[i]);
+        factors_of_a_node_[*var].push_back(i);
       }
     }
   }
@@ -241,7 +241,7 @@ private:
   };
 
   std::vector<std::vector<Arc> > arcs_adjacent_to_node_;
-  std::vector<std::vector<Factor*> > factors_of_a_node_;
+  std::vector<std::vector<int> > factors_of_a_node_;
   std::vector<Arc> arcs_;
   std::vector<Factor> factors_;
   google::dense_hash_map<IntPair, std::vector<Arc> > arcs_connecting_node_pair_;
@@ -425,10 +425,12 @@ public:
       }
     }
 
-    for (size_t i = 0; i < query_->factors_of_a_node_[node].size(); ++i) {
+    const std::vector<int>& factors_of_a_node = query_->factors_of_a_node_[node];
+    for (size_t i = 0; i < factors_of_a_node.size(); ++i) {
       uint64 hash = 0;
-      for (auto var_it = query_->factors_of_a_node_[node][i]->begin();
-                var_it != query_->factors_of_a_node_[node][i]->end(); ++var_it) {
+      const Factor& factor = query_->factors_[factors_of_a_node[i]];
+      for (auto var_it = factor.begin();
+                var_it != factor.end(); ++var_it) {
         hash += HashInt(assignments_[*var_it].label);
       }
 
@@ -472,10 +474,12 @@ public:
     if (node == node_assigned) {
       node_label = node_assignment;
     }
-    for (size_t i = 0; i < query_->factors_of_a_node_[node].size(); ++i) {
+    const std::vector<int>& factors_of_a_node = query_->factors_of_a_node_[node];
+    for (size_t i = 0; i < factors_of_a_node.size(); ++i) {
       uint64 hash = HashInt(node_label);
-      for (auto var = query_->factors_of_a_node_[node][i]->begin();
-                var != query_->factors_of_a_node_[node][i]->end(); ++var) {
+      const Factor& factor = query_->factors_[factors_of_a_node[i]];
+      for (auto var = factor.begin();
+                var != factor.end(); ++var) {
         if (*var != node) {
           hash += HashInt(assignments_[*var].label);
         }
@@ -687,9 +691,11 @@ public:
       int label,
       double gradient_weight) const {
     int node_label = label;
-    for (const Factor* f : query_->factors_of_a_node_[node]) {
+    const std::vector<int>& factors_of_a_node = query_->factors_of_a_node_[node];
+    for (size_t i = 0; i < factors_of_a_node.size(); ++i) {
       uint64 hash = HashInt(node_label);
-      for (auto var = f->begin(); var != f->end(); ++var) {
+      const Factor& f = query_->factors_[factors_of_a_node[i]];
+      for (auto var = f.begin(); var != f.end(); ++var) {
         if (*var != node) {
           hash += HashInt(assignments_[(*var)].label);
         }
