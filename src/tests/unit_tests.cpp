@@ -22,6 +22,8 @@
 #include "graph_inference.h"
 #include "label_set.h"
 
+static const size_t mockFactorsLimit = 0;
+
 TEST(FactorFeaturesLevelTest, NextLevelZeroEntryWhenCurrentDepthGreaterThanMaximumDepth) {
   FactorFeaturesLevel unit_under_test;
   Factor fake_factor;
@@ -35,7 +37,7 @@ TEST(FactorFeaturesLevelTest, NextLevelZeroEntryWhenCurrentDepthGreaterThanMaxim
   double weight = 0.5;
 
   std::shared_ptr<std::pair<double, Factor>> fake_factor_feature = std::make_shared<std::pair<double, Factor>>(weight, fake_factor);
-  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels, mockFactorsLimit);
 
   EXPECT_EQ(0, unit_under_test.next_level.size());
 }
@@ -53,7 +55,7 @@ TEST(FactorFeaturesLevelTest, FactorFeaturesOneEntryWhenInsertingFactorFeature) 
   double weight = 0.5;
 
   std::shared_ptr<std::pair<double, Factor>> fake_factor_feature = std::make_shared<std::pair<double, Factor>>(weight, fake_factor);
-  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels, mockFactorsLimit);
 
   EXPECT_EQ(1, unit_under_test.factor_features.size());
 }
@@ -72,7 +74,7 @@ TEST(FactorFeaturesLevelTest, NextLevelCorrectNumberOfEntriesWhenOneOfTheOtherLa
   double weight = 0.5;
 
   std::shared_ptr<std::pair<double, Factor>> fake_factor_feature = std::make_shared<std::pair<double, Factor>>(weight, fake_factor);
-  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels, mockFactorsLimit);
 
   EXPECT_EQ(1, unit_under_test.next_level.size());
 }
@@ -91,7 +93,7 @@ TEST(FactorFeaturesLevelTest, NextLevelCorrectNumberOfEntriesWithOneDuplicatedLa
   double weight = 0.5;
 
   std::shared_ptr<std::pair<double, Factor>> fake_factor_feature = std::make_shared<std::pair<double, Factor>>(weight, fake_factor);
-  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels);
+  unit_under_test.InsertFactorFeature(fake_factor_feature, fake_factor, current_depth, maximum_depth, current_label, visited_labels, mockFactorsLimit);
 
   EXPECT_EQ(3, unit_under_test.next_level.size());
 }

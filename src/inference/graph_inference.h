@@ -77,28 +77,29 @@ struct FactorFeaturesLevel {
                            int current_depth,
                            int maximum_depth,
                            int current_label,
-                           Factor visited_labels) {
+                           Factor visited_labels,
+                           const size_t factors_limit_before_going_to_next_level) {
     factor_features.push_back(factor_feature);
 
     Factor next_level_labels_visited;
     if (current_label > 0) {
       visited_labels.insert(current_label);
     }
-    if (current_depth < maximum_depth && visited_labels.size() < f.size()) {
+    if (current_depth < maximum_depth && visited_labels.size() < f.size() && factor_features.size() > factors_limit_before_going_to_next_level ) {
       for (auto it = f.begin(); it != f.end(); ++it) {
         if ((visited_labels.count(*it) + next_level_labels_visited.count(*it)) < f.count(*it)) {
           next_level_labels_visited.insert(*it);
           if (next_level.count(*it) == 0) {
             next_level[*it] = std::make_shared<FactorFeaturesLevel>();
           }
-          next_level[*it]->InsertFactorFeature(factor_feature, f,current_depth + 1, maximum_depth, *it, visited_labels);
+          next_level[*it]->InsertFactorFeature(factor_feature, f,current_depth + 1, maximum_depth, *it, visited_labels, factors_limit_before_going_to_next_level);
         }
       }
     }
   }
 
   void GetFactors(Factor giv_labels, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) const {
-    if (next_level.empty() || giv_labels.empty()) {
+    if (next_level.empty() || giv_labels.empty() || next_level.count(next_level_label) > 0) {
       for (auto it = factor_features.begin(); it != factor_features.end() && candidates->size() < beam_size; ++it) {
         candidates->push_back((*it)->second);
       }
@@ -106,11 +107,9 @@ struct FactorFeaturesLevel {
       auto it = giv_labels.begin();
       giv_labels.erase(it);
       it++;
-      if (next_level.count(next_level_label) > 0) {
-        const auto& nl = next_level.find(next_level_label);
-        if (nl != next_level.end()) {
-          nl->second->GetFactors(giv_labels, *it, candidates, beam_size);
-        }
+      const auto& nl = next_level.find(next_level_label);
+      if (nl != next_level.end()) {
+        nl->second->GetFactors(giv_labels, *it, candidates, beam_size);
       }
     }
   }

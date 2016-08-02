@@ -44,6 +44,18 @@ To get options for training, use:
 
 By default, train gets input programs (converted to JSON for example with UnuglifyJS) from the file testdata in the current directory. As a result, it creates files with the trained model.
 
+If you wish to train the model using pseudolikelihood use the following parameters:
+
+> bin/training/train -training_method pl
+
+you can control the pseudolikelihood specific beam size with the ""-beam_size"" parameter.
+
+### Factors
+
+by default the usage of factor features in Nice2Predict is enabled, however if you wish to disable it you can launch the training with the following command:
+
+> bin/training/train -use_factors=false
+
 ## Predicting properties
 
 To predict properties for new programs, start a server after a model was trained:
@@ -51,5 +63,3 @@ To predict properties for new programs, start a server after a model was trained
 > bin/server/nice2server --logtostderr
 
 Then, the server will predict properties for programs given in JsonRPC format. One can debug and observe deobfuscation from the viewer available in the viewer/viewer.html .
-
-

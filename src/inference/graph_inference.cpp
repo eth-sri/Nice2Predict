@@ -45,9 +45,10 @@ DEFINE_int32(graph_loopy_bp_steps_per_pass, 3, "Number of loopy belief propagati
 DEFINE_int32(skip_per_arc_optimization_for_nodes_above_degree, 32,
     "Skip the per-arc optimization pass if an edge is connected to a node with the in+out degree more than the given value");
 
-DEFINE_int32(maximum_depth, 2, "Maximum depth when looking for factor candidates");
-DEFINE_int32(factors_limit, 4, "Factors limit before which stop to go deeper");
-DEFINE_uint64(permutations_beam_size, 64, "Permutations beam size");
+DEFINE_bool(use_factors, true, "Flag that enable the use of the factors in training and MAP inference.");
+DEFINE_int32(maximum_depth, 2, "Maximum depth of the multi-level map used to store the factor features");
+DEFINE_int32(factors_limit, 128, "Maximum number of factor candidates considered for inference using factor features");
+DEFINE_uint64(permutations_beam_size, 64, "Maximum number of permutations of the assignments to unknown labels in a factor");
 
 DEFINE_string(valid_labels, "valid_names.txt", "A file describing valid names");
 DEFINE_string(unknown_label,
@@ -184,14 +185,16 @@ public:
           nodes_in_scope_.push_back(std::move(scope_vars));
         }
       }
-      if (arc.isMember("group")) {
-        const Json::Value& v = arc["group"];
-        if (v.isArray()) {
-          Factor factor_vars;
-          for (const Json::Value& item : v) {
-            factor_vars.insert(numberer_.ValueToNumber(item));
+      if (FLAGS_use_factors) {
+        if (arc.isMember("group")) {
+          const Json::Value& v = arc["group"];
+          if (v.isArray()) {
+            Factor factor_vars;
+            for (const Json::Value& item : v) {
+              factor_vars.insert(numberer_.ValueToNumber(item));
+            }
+            factors_.push_back(factor_vars);
           }
-          factors_.push_back(factor_vars);
         }
       }
     }
@@ -1643,25 +1646,27 @@ void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value
       }
     }
 
-    if (arc.isMember("group")) {
-      const Json::Value& v = arc["group"];
-      if (v.isArray()) {
-        Factor factor_vars;
-        uint64 hash = 0;
-        for (const Json::Value& item : v) {
-          int value = FindWithDefault(values, numb.ValueToNumber(item), -1);
-          if (value == -1) {
-            factor_vars.clear();
-            break;
+    if (FLAGS_use_factors) {
+      if (arc.isMember("group")) {
+        const Json::Value& v = arc["group"];
+        if (v.isArray()) {
+          Factor factor_vars;
+          uint64 hash = 0;
+          for (const Json::Value& item : v) {
+            int value = FindWithDefault(values, numb.ValueToNumber(item), -1);
+            if (value == -1) {
+              factor_vars.clear();
+              break;
+            }
+            factor_vars.insert(value);
+            hash += HashInt(value);
           }
-          factor_vars.insert(value);
-          hash += HashInt(value);
+          if (factor_vars.empty()) {
+            continue;
+          }
+          factors_set_.insert(factor_vars);
+          factor_features_[hash] += 1;
         }
-        if (factor_vars.empty()) {
-          continue;
-        }
-        factors_set_.insert(factor_vars);
-        factor_features_[hash] += 1;
       }
     }
   }
@@ -1726,7 +1731,8 @@ void GraphInference::PrepareForInference() {
     best_features_for_a_type_[IntPair(f.a_, f.type_)].push_back(std::pair<double, int>(feature_weight, f.b_));
     best_features_for_b_type_[IntPair(f.b_, f.type_)].push_back(std::pair<double, int>(feature_weight, f.a_));
   }
-
+  LOG(INFO) << "Num factor features: " << factors_set_.size();
+  LOG(INFO) << "Num pairwise features: " << features_.size();
   for (auto factor_feature = factors_set_.begin(); factor_feature != factors_set_.end(); ++factor_feature) {
     Factor f = *factor_feature;
     uint64 hash = 0;
@@ -1736,7 +1742,7 @@ void GraphInference::PrepareForInference() {
     double feature_weight = factor_features_[hash];
     Factor visited_labels;
     std::shared_ptr<std::pair<double, Factor>> factor_feature_shared_pointer = std::make_shared<std::pair<double, Factor>>(feature_weight, f);
-    best_factor_features_first_level_[f.size()].InsertFactorFeature(factor_feature_shared_pointer, f, 0, FLAGS_maximum_depth, -1, visited_labels);
+    best_factor_features_first_level_[f.size()].InsertFactorFeature(factor_feature_shared_pointer, f, 0, FLAGS_maximum_depth, -1, visited_labels, FLAGS_factors_limit);
   }
 
   LOG(INFO) << "Preparing GraphInference for MAP inference...";
