@@ -1731,8 +1731,6 @@ void GraphInference::PrepareForInference() {
     best_features_for_a_type_[IntPair(f.a_, f.type_)].push_back(std::pair<double, int>(feature_weight, f.b_));
     best_features_for_b_type_[IntPair(f.b_, f.type_)].push_back(std::pair<double, int>(feature_weight, f.a_));
   }
-  LOG(INFO) << "Num factor features: " << factors_set_.size();
-  LOG(INFO) << "Num pairwise features: " << features_.size();
   for (auto factor_feature = factors_set_.begin(); factor_feature != factors_set_.end(); ++factor_feature) {
     Factor f = *factor_feature;
     uint64 hash = 0;
