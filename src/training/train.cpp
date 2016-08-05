@@ -51,7 +51,7 @@ DEFINE_double(start_learning_rate, 0.1, "Initial learning rate");
 DEFINE_double(stop_learning_rate, 0.0001, "Stop learning if learning rate falls below the value");
 DEFINE_double(regularization_const, 2.0, "Regularization constant. The higher, the more regularization.");
 DEFINE_double(svm_margin, 0.1, "SVM Margin = Penalty for keeping equal labels as in the training data during training.");
-DEFINE_int32(beam_size, 5, "Beam size used to get the labels space for the normalization function when training with pseudolikelihood");
+DEFINE_int32(beam_size, 16, "Beam size used to get the labels space for the normalization function when training with pseudolikelihood");
 
 DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is performed with the specified number of folds");
 DEFINE_bool(print_confusion, false, "Print confusion statistics instead of training.");
