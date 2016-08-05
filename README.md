@@ -48,7 +48,7 @@ If you wish to train the model using pseudolikelihood use the following paramete
 
 > bin/training/train -training_method pl
 
-you can control the pseudolikelihood specific beam size with the ""-beam_size"" parameter.
+you can control the pseudolikelihood specific beam size with the `-beam_size` parameter which is different from the beam size used during MAP Inference.
 
 ### Factors
 
