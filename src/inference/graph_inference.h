@@ -99,7 +99,7 @@ struct FactorFeaturesLevel {
   }
 
   void GetFactors(Factor giv_labels, int next_level_label, std::vector<Factor>* candidates, size_t beam_size) const {
-    if (next_level.empty() || giv_labels.empty() || next_level.count(next_level_label) > 0) {
+    if (next_level.empty() || giv_labels.empty() || next_level.count(next_level_label) == 0) {
       for (auto it = factor_features.begin(); it != factor_features.end() && candidates->size() < beam_size; ++it) {
         candidates->push_back((*it)->second);
       }
