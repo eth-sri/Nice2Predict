@@ -29,7 +29,6 @@
 #include "maputil.h"
 #include "label_checker.h"
 
-
 typedef std::multiset<int> Factor;
 
 namespace std {
