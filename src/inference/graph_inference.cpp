@@ -65,6 +65,8 @@ static const size_t kStartPerNodeBeamSize = 4;
 static const size_t kMaxPerNodeBeamSize = 64;
 static const size_t kLoopyBPBeamSize = 32;
 
+static const size_t kFactorsLimitBeforeGoingDepperMultiLevelMap = 16;
+
 namespace std {
   template <> struct hash<Json::Value> {
     size_t operator()(const Json::Value& v) const {
@@ -1740,7 +1742,7 @@ void GraphInference::PrepareForInference() {
     double feature_weight = factor_features_[hash];
     Factor visited_labels;
     std::shared_ptr<std::pair<double, Factor>> factor_feature_shared_pointer = std::make_shared<std::pair<double, Factor>>(feature_weight, f);
-    best_factor_features_first_level_[f.size()].InsertFactorFeature(factor_feature_shared_pointer, f, 0, FLAGS_maximum_depth, -1, visited_labels, FLAGS_factors_limit);
+    best_factor_features_first_level_[f.size()].InsertFactorFeature(factor_feature_shared_pointer, f, 0, FLAGS_maximum_depth, -1, visited_labels, kFactorsLimitBeforeGoingDepperMultiLevelMap);
   }
 
   LOG(INFO) << "Preparing GraphInference for MAP inference...";
