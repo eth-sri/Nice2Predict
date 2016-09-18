@@ -351,6 +351,54 @@ public:
     }
   }
 
+  std::vector<std::pair<int, double>> GetCandidatesForNode(Nice2Inference& inference, int node) {
+        GraphInference& graphInference = static_cast<GraphInference&>(inference);
+        std::vector<int> candidates;
+        candidates.clear();
+        GetLabelCandidates(graphInference, node, &candidates, kMaxPerArcBeamSize);
+
+        std::vector<std::pair<int, double>> scoredCandidates;
+        Assignment& nodea = assignments_[node];
+        int originalLabel = nodea.label;
+        for (size_t i = 0; i < candidates.size() ; i++) {
+          int candidate = candidates[i];
+          nodea.label = candidate;
+          double score = GetNodeScore(graphInference, node);
+          scoredCandidates.push_back(std::pair<int, double>(candidate, score));
+        }
+        nodea.label = originalLabel;
+
+        std::sort(scoredCandidates.begin(), scoredCandidates.end(), [](const std::pair<int,double> &left, const std::pair<int,double> &right) {
+          return right.second < left.second;
+        });
+        return scoredCandidates;
+  }
+ 
+  virtual void GetCandidates(
+      Nice2Inference& inference,
+      const int n,
+      Json::Value* response) override {
+    *response = Json::Value(Json::arrayValue);
+    
+    for (size_t i = 0; i < assignments_.size(); ++i) {
+      if (assignments_[i].must_infer) {
+        std::vector<std::pair<int, double>> scoredCandidates = GetCandidatesForNode(inference, i);
+        Json::Value nodeResults(Json::objectValue);
+        nodeResults["v"] = query_->numberer_.NumberToValue(i);
+        Json::Value nodeCandidates(Json::arrayValue);
+        // Take only the top-n candidates to the response
+        for (size_t j = 0; j < scoredCandidates.size() && j < (size_t)((unsigned)n) ; j++) {
+          Json::Value obj(Json::objectValue);
+          obj["candidate"] = label_set_->GetLabelName(scoredCandidates[j].first);
+          obj["score"] = scoredCandidates[j].second;
+          nodeCandidates.append(obj);
+        }
+        nodeResults["candidates"] = nodeCandidates;
+        response->append(nodeResults);
+      }
+    }
+  }
+
   virtual void ClearInferredAssignment() override {
     for (size_t i = 0; i < assignments_.size(); ++i) {
       if (assignments_[i].must_infer) {
