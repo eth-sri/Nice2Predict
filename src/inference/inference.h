@@ -54,6 +54,8 @@ struct SingleLabelErrorStats {
   std::mutex lock;
 };
 
+// Forward declaration
+class Nice2Inference;
 
 // Assigned results for the query (including the pre-assigned values).
 class Nice2Assignment {
@@ -66,6 +68,11 @@ public:
 
   virtual void FromJSON(const Json::Value& assignment) = 0;
   virtual void ToJSON(Json::Value* assignment) const = 0;
+
+  virtual void GetCandidates(
+      Nice2Inference* inference,
+      const int n,
+      Json::Value* response) = 0;
 
   // Deletes all labels that must be inferred (does not affect the given known labels).
   virtual void ClearInferredAssignment() = 0;

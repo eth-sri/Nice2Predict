@@ -351,6 +351,56 @@ public:
     }
   }
 
+  void GetCandidatesForNode(
+      Nice2Inference* inference, 
+      const int node, 
+      std::vector<std::pair<int, double>>* scored_candidates) {
+    GraphInference* graphInference = static_cast<GraphInference*>(inference);
+    std::vector<int> candidates;
+    GetLabelCandidates(*graphInference, node, &candidates, kMaxPerArcBeamSize);
+
+    scored_candidates->clear();
+    Assignment& nodea = assignments_[node];
+    int original_label = nodea.label;
+    for (size_t i = 0; i < candidates.size() ; i++) {
+      int candidate = candidates[i];
+      nodea.label = candidate;
+      double score = GetNodeScore(*graphInference, node);
+      scored_candidates->push_back(std::pair<int, double>(candidate, score));
+    }
+    nodea.label = original_label;
+
+    std::sort(scored_candidates->begin(), scored_candidates->end(), [](const std::pair<int,double> &left, const std::pair<int,double> &right) {
+      return right.second < left.second;
+    });
+  }
+ 
+  virtual void GetCandidates(
+      Nice2Inference* inference,
+      const int n,
+      Json::Value* response) override {
+    *response = Json::Value(Json::arrayValue);
+    
+    std::vector<std::pair<int, double>> scored_candidates;
+    for (size_t i = 0; i < assignments_.size(); ++i) {
+      if (assignments_[i].must_infer) {
+        GetCandidatesForNode(inference, i, &scored_candidates);
+        Json::Value node_results(Json::objectValue);
+        node_results["v"] = query_->numberer_.NumberToValue(i);
+        Json::Value node_candidate(Json::arrayValue);
+        // Take only the top-n candidates to the response
+        for (size_t j = 0; j < scored_candidates.size() && j < (size_t)((unsigned)n) ; j++) {
+          Json::Value obj(Json::objectValue);
+          obj["label"] = label_set_->GetLabelName(scored_candidates[j].first);
+          obj["score"] = scored_candidates[j].second;
+          node_candidate.append(obj);
+        }
+        node_results["candidates"] = node_candidate;
+        response->append(node_results);
+      }
+    }
+  }
+
   virtual void ClearInferredAssignment() override {
     for (size_t i = 0; i < assignments_.size(); ++i) {
       if (assignments_[i].must_infer) {

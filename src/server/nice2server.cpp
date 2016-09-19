@@ -125,15 +125,25 @@ public:
 
   void nbest(const Json::Value& request, Json::Value& response)
   {
-    // int n = request["n"].asInt();
+    const int n = request["n"].asInt();
     VLOG(3) << request.toStyledString();
     verifyVersion(request);
+
+    const Json::Value& shouldInferParam = request["infer"];
+    // If infer parameter was not provided - set should infer to "false" by default
+    bool shouldInfer = false;
+    if (shouldInferParam != Json::Value::null) {
+      shouldInfer = shouldInferParam.asBool();
+    }
+
     std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
     query->FromJSON(request["query"]);
     std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
     assignment->FromJSON(request["assign"]);
-    inference_.MapInference(query.get(), assignment.get());
-    assignment->ToJSON(&response);
+    if (shouldInfer) {
+      inference_.MapInference(query.get(), assignment.get());
+    }
+    assignment->GetCandidates(&inference_, n, &response);
 
     MaybeLogQuery("nbest", request, response);
   }
