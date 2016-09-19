@@ -381,22 +381,22 @@ public:
       Json::Value* response) override {
     *response = Json::Value(Json::arrayValue);
     
+    std::vector<std::pair<int, double>> scored_candidates;
     for (size_t i = 0; i < assignments_.size(); ++i) {
       if (assignments_[i].must_infer) {
-        std::vector<std::pair<int, double>> scored_candidates;
         GetCandidatesForNode(inference, i, &scored_candidates);
-        Json::Value nodeResults(Json::objectValue);
-        nodeResults["v"] = query_->numberer_.NumberToValue(i);
-        Json::Value nodeCandidates(Json::arrayValue);
+        Json::Value node_results(Json::objectValue);
+        node_results["v"] = query_->numberer_.NumberToValue(i);
+        Json::Value node_candidate(Json::arrayValue);
         // Take only the top-n candidates to the response
         for (size_t j = 0; j < scored_candidates.size() && j < (size_t)((unsigned)n) ; j++) {
           Json::Value obj(Json::objectValue);
           obj["label"] = label_set_->GetLabelName(scored_candidates[j].first);
           obj["score"] = scored_candidates[j].second;
-          nodeCandidates.append(obj);
+          node_candidate.append(obj);
         }
-        nodeResults["candidates"] = nodeCandidates;
-        response->append(nodeResults);
+        node_results["candidates"] = node_candidate;
+        response->append(node_results);
       }
     }
   }
