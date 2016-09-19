@@ -351,46 +351,48 @@ public:
     }
   }
 
-  std::vector<std::pair<int, double>> GetCandidatesForNode(Nice2Inference& inference, int node) {
-        GraphInference& graphInference = static_cast<GraphInference&>(inference);
-        std::vector<int> candidates;
-        candidates.clear();
-        GetLabelCandidates(graphInference, node, &candidates, kMaxPerArcBeamSize);
+  void GetCandidatesForNode(
+      Nice2Inference* inference, 
+      const int node, 
+      std::vector<std::pair<int, double>>* scored_candidates) {
+    GraphInference* graphInference = static_cast<GraphInference*>(inference);
+    std::vector<int> candidates;
+    GetLabelCandidates(*graphInference, node, &candidates, kMaxPerArcBeamSize);
 
-        std::vector<std::pair<int, double>> scoredCandidates;
-        Assignment& nodea = assignments_[node];
-        int originalLabel = nodea.label;
-        for (size_t i = 0; i < candidates.size() ; i++) {
-          int candidate = candidates[i];
-          nodea.label = candidate;
-          double score = GetNodeScore(graphInference, node);
-          scoredCandidates.push_back(std::pair<int, double>(candidate, score));
-        }
-        nodea.label = originalLabel;
+    scored_candidates->clear();
+    Assignment& nodea = assignments_[node];
+    int original_label = nodea.label;
+    for (size_t i = 0; i < candidates.size() ; i++) {
+      int candidate = candidates[i];
+      nodea.label = candidate;
+      double score = GetNodeScore(*graphInference, node);
+      scored_candidates->push_back(std::pair<int, double>(candidate, score));
+    }
+    nodea.label = original_label;
 
-        std::sort(scoredCandidates.begin(), scoredCandidates.end(), [](const std::pair<int,double> &left, const std::pair<int,double> &right) {
-          return right.second < left.second;
-        });
-        return scoredCandidates;
+    std::sort(scored_candidates->begin(), scored_candidates->end(), [](const std::pair<int,double> &left, const std::pair<int,double> &right) {
+      return right.second < left.second;
+    });
   }
  
   virtual void GetCandidates(
-      Nice2Inference& inference,
+      Nice2Inference* inference,
       const int n,
       Json::Value* response) override {
     *response = Json::Value(Json::arrayValue);
     
     for (size_t i = 0; i < assignments_.size(); ++i) {
       if (assignments_[i].must_infer) {
-        std::vector<std::pair<int, double>> scoredCandidates = GetCandidatesForNode(inference, i);
+        std::vector<std::pair<int, double>> scored_candidates;
+        GetCandidatesForNode(inference, i, &scored_candidates);
         Json::Value nodeResults(Json::objectValue);
         nodeResults["v"] = query_->numberer_.NumberToValue(i);
         Json::Value nodeCandidates(Json::arrayValue);
         // Take only the top-n candidates to the response
-        for (size_t j = 0; j < scoredCandidates.size() && j < (size_t)((unsigned)n) ; j++) {
+        for (size_t j = 0; j < scored_candidates.size() && j < (size_t)((unsigned)n) ; j++) {
           Json::Value obj(Json::objectValue);
-          obj["candidate"] = label_set_->GetLabelName(scoredCandidates[j].first);
-          obj["score"] = scoredCandidates[j].second;
+          obj["label"] = label_set_->GetLabelName(scored_candidates[j].first);
+          obj["score"] = scored_candidates[j].second;
           nodeCandidates.append(obj);
         }
         nodeResults["candidates"] = nodeCandidates;

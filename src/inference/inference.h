@@ -70,7 +70,7 @@ public:
   virtual void ToJSON(Json::Value* assignment) const = 0;
 
   virtual void GetCandidates(
-      Nice2Inference& inference,
+      Nice2Inference* inference,
       const int n,
       Json::Value* response) = 0;
 

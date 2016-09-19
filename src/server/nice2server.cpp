@@ -125,11 +125,11 @@ public:
 
   void nbest(const Json::Value& request, Json::Value& response)
   {
-    int n = request["n"].asInt();
+    const int n = request["n"].asInt();
     VLOG(3) << request.toStyledString();
     verifyVersion(request);
 
-    const Json::Value shouldInferParam = request["infer"];
+    const Json::Value& shouldInferParam = request["infer"];
     // If infer parameter was not provided - set should infer to "false" by default
     bool shouldInfer = false;
     if (shouldInferParam != Json::Value::null) {
@@ -143,7 +143,7 @@ public:
     if (shouldInfer) {
       inference_.MapInference(query.get(), assignment.get());
     }
-    assignment->GetCandidates(inference_, n, &response);
+    assignment->GetCandidates(&inference_, n, &response);
 
     MaybeLogQuery("nbest", request, response);
   }
