@@ -365,6 +365,7 @@ public:
     for (size_t i = 0; i < candidates.size() ; i++) {
       int candidate = candidates[i];
       nodea.label = candidate;
+	  if (!graphInference.label_checker_.IsLabelValid(candidate)) continue;
       double score = GetNodeScore(*graphInference, node);
       scored_candidates->push_back(std::pair<int, double>(candidate, score));
     }
