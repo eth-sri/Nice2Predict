@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
+INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
+
 PROJECT(NICE2)
 
 ADD_DEFINITIONS("-Wall -pedantic")
