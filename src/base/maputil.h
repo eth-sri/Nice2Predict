@@ -46,14 +46,6 @@ struct IntPair {
   int second;
 };
 
-namespace std { namespace tr1 {
-  template <> struct hash<IntPair> {
-    size_t operator()(const IntPair& x) const {
-      return x.first * 6037 + x.second;
-    }
-  };
-}}
-
 namespace std {
   template <> struct hash<IntPair> {
     size_t operator()(const IntPair& x) const {
