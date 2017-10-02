@@ -2,6 +2,6 @@
 set -e
 mkdir -p bin
 cd bin
-cmake -D CMAKE_BUILD_TYPE=Release ../src/
+cmake -D CMAKE_BUILD_TYPE=Release -H../src/
 make
 
