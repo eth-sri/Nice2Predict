@@ -7,7 +7,8 @@ INCLUDE_DIRECTORIES(${NICE2_SOURCE_DIR}/inference)
 SET(TESTS_H)
 
 SET(TESTS_CPP
-    unit_tests.cpp)
+    unit_tests.cpp
+    ${PROTO_SRC_DIR}/service.pb.cc)
 
 ADD_LIBRARY(tests ${TESTS_H} ${TESTS_CPP})
 

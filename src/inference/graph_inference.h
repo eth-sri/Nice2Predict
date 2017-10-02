@@ -206,6 +206,11 @@ public:
       const Nice2Assignment* assignment,
       Json::Value* graph) const override;
 
+  virtual void FillGraphProto(
+      const Nice2Query* query,
+      const Nice2Assignment* assignment,
+      nice2protos::ShowGraphResponse* graph) const override;
+
   void PrintDebugInfo();
 
   void PrintConfusionStatistics(

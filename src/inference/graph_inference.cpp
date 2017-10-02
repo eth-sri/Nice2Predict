@@ -35,6 +35,11 @@
 
 #include "label_set.h"
 
+using nice2protos::Feature;
+using nice2protos::InferResponse;
+using nice2protos::NBestResponse;
+using nice2protos::ShowGraphResponse;
+
 DEFINE_bool(initial_greedy_assignment_pass, true, "Whether to run an initial greedy assignment pass.");
 DEFINE_bool(duplicate_name_resolution, true, "Whether to attempt a duplicate name resultion on conflicts.");
 DEFINE_int32(graph_per_node_passes, 8, "Number of per-node passes for inference");
@@ -232,6 +237,78 @@ public:
     }
   }
 
+  virtual void FromFeatureProto(const FeaturesQuery &query) override {
+    arcs_.clear();
+    factors_.clear();
+
+    int max_index = 0;
+    for (const Feature& feature : query) {
+      if (feature.has_binary_relation()) {
+        // A factor connecting two facts (an arc).
+        Arc a;
+        a.node_a = feature.binary_relation().first();
+        a.node_b = feature.binary_relation().second();
+        max_index = std::max({max_index, a.node_a, a.node_b});
+        a.type = label_set_.ss()->findString(feature.binary_relation().relation().c_str());
+        if (a.type < 0) continue;
+        arcs_.push_back(a);
+      }
+      else if (feature.has_constraint()) {
+        // A scope that lists names that cannot be assigned to the same value.
+        CHECK(feature.constraint().constraint() == "!=");
+        std::vector<int> scope_vars;
+        scope_vars.reserve(feature.constraint().indices_size());
+        for (const auto& item : feature.constraint().indices()) {
+          scope_vars.push_back(item);
+        }
+        std::sort(scope_vars.begin(), scope_vars.end());
+        max_index = std::max(max_index, scope_vars.back());
+        scope_vars.erase(std::unique(scope_vars.begin(), scope_vars.end()), scope_vars.end());
+        nodes_in_scope_.push_back(std::move(scope_vars));
+      }
+      if (FLAGS_use_factors && feature.has_factor_variables()) {
+        Factor factor_vars;
+        for (const auto& item : feature.factor_variables().indices()) {
+          factor_vars.insert(item);
+          max_index = std::max(max_index, item);
+        }
+        factors_.push_back(std::move(factor_vars));
+      }
+    }
+    std::sort(arcs_.begin(), arcs_.end());
+
+    arcs_adjacent_to_node_.assign(max_index + 1, std::vector<Arc>());
+    for (const Arc& a : arcs_) {
+      arcs_adjacent_to_node_[a.node_a].push_back(a);
+      arcs_adjacent_to_node_[a.node_b].push_back(a);
+    }
+    for (std::vector<Arc>& v : arcs_adjacent_to_node_) {
+      std::sort(v.begin(), v.end());
+      v.erase(std::unique(v.begin(), v.end()), v.end());
+    }
+
+    arcs_connecting_node_pair_.clear();
+    for (const Arc& a : arcs_) {
+      arcs_connecting_node_pair_[IntPair(a.node_a, a.node_b)].push_back(a);
+      arcs_connecting_node_pair_[IntPair(a.node_b, a.node_a)].push_back(a);
+    }
+
+    scopes_per_nodes_.assign(max_index + 1, std::vector<int>());
+    for (size_t scope = 0; scope < nodes_in_scope_.size(); ++scope) {
+      for (int node : nodes_in_scope_[scope]) {
+        scopes_per_nodes_[node].push_back(scope);
+      }
+    }
+
+    factors_of_a_node_.assign(max_index + 1, std::vector<int>());
+    for (size_t i = 0; i < factors_.size(); ++i) {
+      for (auto var = factors_[i].begin(); var != factors_[i].end(); ++var) {
+        factors_of_a_node_[*var].push_back(i);
+      }
+    }
+
+  }
+
 private:
   struct Arc {
     int node_a, node_b, type;
@@ -334,6 +411,20 @@ public:
     ClearPenalty();
   }
 
+  virtual void FromPropertyProto(const Assignments &assignments) override {
+    size_t variables_count = query_->arcs_adjacent_to_node_.size();
+    assignments_.assign(variables_count, Assignment());
+    for (const auto& assignment : assignments) {
+      Assignment aset;
+      aset.label = label_set_->AddLabelName(assignment.label().c_str());
+      aset.must_infer = !assignment.given();
+      if (assignment.index() < variables_count) {
+        assignments_[assignment.index()] = aset;
+      }
+    }
+    ClearPenalty();
+  }
+
   virtual void ToJSON(Json::Value* assignment) const override {
     *assignment = Json::Value(Json::arrayValue);
     for (size_t i = 0; i < assignments_.size(); ++i) {
@@ -348,6 +439,17 @@ public:
         obj["giv"] = Json::Value(str_value);
       }
       assignment->append(obj);
+    }
+  }
+
+  virtual void FillInferResponse(InferResponse* response) const override {
+    for (size_t i = 0; i < assignments_.size(); ++i) {
+      if (assignments_[i].label < 0) continue;
+
+      auto *assignment = response->add_assignments();
+      assignment->set_index(i);
+      assignment->set_given(!assignments_[i].must_infer);
+      assignment->set_label(label_set_->GetLabelName(assignments_[i].label));
     }
   }
 
@@ -398,6 +500,31 @@ public:
         }
         node_results["candidates"] = node_candidate;
         response->append(node_results);
+      }
+    }
+  }
+
+  virtual void GetNBestCandidates(
+      Nice2Inference* inference,
+      const int n,
+      nice2protos::NBestResponse* response) override {
+    std::vector<std::pair<int, double>> scored_candidates;
+    for (size_t i = 0; i < assignments_.size(); ++i) {
+      if (assignments_[i].must_infer) {
+        GetCandidatesForNode(inference, i, &scored_candidates);
+        auto *distribution = response->add_candidates_distributions();
+        distribution->set_index(i);
+        // Take only the top-n candidates to the response
+        for (size_t j = 0; j < scored_candidates.size() && j < (size_t)((unsigned)n) ; j++) {
+          auto *candidate = distribution->add_candidates();
+          auto *assignment = new nice2protos::Assignment();
+          assignment->set_label(label_set_->GetLabelName(scored_candidates[j].first));
+          assignment->set_index(i);
+          assignment->set_given(false);
+
+          candidate->set_allocated_assignment(assignment);
+          candidate->set_score(scored_candidates[j].second);
+        }
       }
     }
   }
@@ -1663,6 +1790,44 @@ void GraphInference::DisplayGraph(
     edge["source"] = Json::Value(StringPrintf("N%d", static_cast<int>(it->first.first)));
     edge["target"] = Json::Value(StringPrintf("N%d", static_cast<int>(it->first.second)));
     edges.append(edge);
+    edge_id++;
+  }
+}
+
+void GraphInference::FillGraphProto(
+    const Nice2Query* query,
+    const Nice2Assignment* assignment,
+    nice2protos::ShowGraphResponse* graph) const {
+  const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
+  for (size_t i = 0; i < a->assignments_.size(); ++i) {
+    if (a->assignments_[i].must_infer ||
+        !a->query_->arcs_adjacent_to_node_[i].empty()) {
+      // Include the node.
+      auto *node = graph->add_nodes();
+      node->set_id(i);
+      int label = a->assignments_[i].label;
+      node->set_label(label < 0 ? StringPrintf("%d", label).c_str() : a->GetLabelName(label));
+      node->set_color(a->assignments_[i].must_infer ? "#6c9ba4" : "#96816a");
+    }
+  }
+  std::unordered_map<IntPair, std::string> dedup_arcs;
+  for (const GraphQuery::Arc& arc : a->query_->arcs_) {
+    std::string& s = dedup_arcs[IntPair(std::min(arc.node_a, arc.node_b),std::max(arc.node_a, arc.node_b))];
+    if (!s.empty()) {
+      s.append(", ");
+    }
+    StringAppendF(&s, "%s - %.2f",
+                  a->GetLabelName(arc.type),
+                  a->GetNodePairScore(*this, arc.node_a, arc.node_b, a->assignments_[arc.node_a].label, a->assignments_[arc.node_b].label));
+  }
+
+  int edge_id = 0;
+  for (const auto &arc : dedup_arcs) {
+    auto *edge = graph->add_edges();
+    edge->set_id(edge_id);
+    edge->set_label(arc.second);
+    edge->set_source(arc.first.first);
+    edge->set_target(arc.first.second);
     edge_id++;
   }
 }

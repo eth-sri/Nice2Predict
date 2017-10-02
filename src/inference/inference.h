@@ -22,6 +22,11 @@
 #include <map>
 #include "jsoncpp/json/json.h"
 
+#include "service.pb.h"
+
+typedef ::google::protobuf::RepeatedPtrField<nice2protos::Feature> FeaturesQuery;
+typedef ::google::protobuf::RepeatedPtrField<nice2protos::Assignment> Assignments;
+
 // Abstract classes for inference.
 
 // A single query to be asked.
@@ -30,6 +35,7 @@ public:
   virtual ~Nice2Query();
 
   virtual void FromJSON(const Json::Value& query) = 0;
+  virtual void FromFeatureProto(const FeaturesQuery &query) = 0;
 };
 
 struct PrecisionStats {
@@ -67,12 +73,19 @@ public:
   virtual void ClearPenalty() = 0;
 
   virtual void FromJSON(const Json::Value& assignment) = 0;
+  virtual void FromPropertyProto(const Assignments &property) = 0;
   virtual void ToJSON(Json::Value* assignment) const = 0;
+  virtual void FillInferResponse(nice2protos::InferResponse* response) const = 0;
 
   virtual void GetCandidates(
       Nice2Inference* inference,
       const int n,
       Json::Value* response) = 0;
+
+  virtual void GetNBestCandidates(
+      Nice2Inference* inference,
+      const int n,
+      nice2protos::NBestResponse* response) = 0;
 
   // Deletes all labels that must be inferred (does not affect the given known labels).
   virtual void ClearInferredAssignment() = 0;
@@ -142,6 +155,13 @@ public:
       const Nice2Query* query,
       const Nice2Assignment* assignment,
       Json::Value* graph) const = 0;
+
+  virtual void FillGraphProto(
+      const Nice2Query* query,
+      const Nice2Assignment* assignment,
+      nice2protos::ShowGraphResponse* graph) const = 0;
+
+
 };
 
 #endif
