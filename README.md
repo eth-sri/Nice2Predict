@@ -9,18 +9,15 @@ We have included an example frontend for JavaScript deminification at http://git
 
 ## Compiling
 
-To compile, first install dependencies (on Ubuntu 14.04):
+To compile, first install dependencies
 
-> sudo apt-get install libgoogle-glog-dev libgflags-dev libjsoncpp-dev libmicrohttpd-dev libcurl4-openssl-dev libargtable2-dev cmake
+on Ubuntu:
+> sudo apt-get install libmicrohttpd-dev libcurl4-openssl-dev bazel
 
-Install Google SparseHash 2.0.2:
-https://github.com/sparsehash/sparsehash
+on Mac:
+> brew install libmicrohttpd bazel
 
-Install json-rpc-cpp from:
-https://github.com/cinemast/libjson-rpc-cpp
-
-And then install GTest following this guide on Ubuntu:
-http://www.eriksmistad.no/getting-started-with-google-test-on-ubuntu/
+on Windows follow any installation instructions and install libmicrohttpd, curl and bazel.
 
 [Optional] Install Google Performance Tools:
 
@@ -28,25 +25,25 @@ http://www.eriksmistad.no/getting-started-with-google-test-on-ubuntu/
 
 2. gperftools: https://code.google.com/p/gperftools/
 
-[Optional] Using Eclipse CDT with C++11:
-http://stackoverflow.com/a/20101407
-
 Finally, call
-> ./build.sh
+> bazel build //...
+
+To run tests, call
+> bazel test //...
 
 ## Training
 
-Compiling creates a training binary in
-> bin/training/train
+Run:
+> bazel run //src/training/train
 
 To get options for training, use:
-> bin/training/train --help
+> bazel run //src/training/train --help
 
 By default, train gets input programs (converted to JSON for example with UnuglifyJS) from the file testdata in the current directory. As a result, it creates files with the trained model.
 
 If you wish to train the model using pseudolikelihood use the following parameters:
 
-> bin/training/train -training_method pl
+> bazel run //src/training/train -training_method pl
 
 you can control the pseudolikelihood specific beam size with the `-beam_size` parameter which is different from the beam size used during MAP Inference.
 
@@ -54,12 +51,15 @@ you can control the pseudolikelihood specific beam size with the `-beam_size` pa
 
 by default the usage of factor features in Nice2Predict is enabled, however if you wish to disable it you can launch the training with the following command:
 
-> bin/training/train -use_factors=false
+> bazel run //src/training/train -use_factors=false
 
 ## Predicting properties
 
 To predict properties for new programs, start a server after a model was trained:
 
-> bin/server/nice2server --logtostderr
+> bazel run //src/server/nice2serverproto --logtostderr
 
-Then, the server will predict properties for programs given in JsonRPC format. One can debug and observe deobfuscation from the viewer available in the viewer/viewer.html .
+To run old JsonRPC API:
+> bazel run //src/server/nice2server --logtostderr
+
+One can debug and observe deobfuscation from the viewer available in the viewer/viewer.html .
