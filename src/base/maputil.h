@@ -17,8 +17,6 @@
 #ifndef BASE_MAPUTIL_H_
 #define BASE_MAPUTIL_H_
 
-#include <set>
-
 template<class Collection, class Key, class Value>
 const Value& FindWithDefault(const Collection& c, const Key& key, const Value& default_value) {
   auto it = c.find(key);
@@ -53,5 +51,6 @@ namespace std {
     }
   };
 }
+
 
 #endif /* BASE_MAPUTIL_H_ */

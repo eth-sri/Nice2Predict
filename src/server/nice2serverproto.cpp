@@ -2,14 +2,15 @@
 
 #include <grpc++/grpc++.h>
 
-#include "service.grpc.pb.h"
-
-#include "stringprintf.h"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
-#include "graph_inference.h"
+
+#include "src/base/stringprintf.h"
+#include "src/inference/graph_inference.h"
+#include "src/inference/inference.h"
+#include "src/protos/service.grpc.pb.h"
+
 #include "server_log.h"
-#include "inference.h"
 
 
 DEFINE_string(model, "model", "Input model files");

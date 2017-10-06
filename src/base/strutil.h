@@ -30,6 +30,7 @@ std::string TrimLeadingAndTrailingSpaces(const std::string& s);
 
 void JoinStrings(const std::vector<std::string>& strs, const std::string& separator, std::string* outstr);
 std::string JoinStrings(const std::vector<std::string>& strs, const std::string& separator);
+std::string JoinInts(const std::vector<int>& ints);
 
 char SplitStringFirstUsing(const::std::string& s, const std::set<char> delims, std::vector<std::string>* out);
 void SplitStringUsing(const::std::string& s, char delim, std::vector<std::string>* out);
@@ -38,5 +39,10 @@ void SplitStringUsing(const::std::string& s, char delim, std::vector<std::string
 int ParseInt32WithDefault(const std::string& s, int def);
 // Parses an integer. Returns false if parse fails.
 bool ParseInt32(const std::string& s, int* value);
+bool ParseDouble(const std::string& s, double* value);
+
+// Escapes string such that it does not contain separators such as space, tab, new line, commas, arithmetic expressions, etc.
+std::string EscapeStrSeparators(const std::string& s);
+std::string UnEscapeStrSeparators(const std::string& s);
 
 #endif /* STRUTIL_H_ */

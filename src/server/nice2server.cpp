@@ -16,17 +16,19 @@
 
 #include "nice2server.h"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-#include "jsoncpp/json/json.h"
-#include "jsonrpccpp/server.h"
-#include "jsonrpccpp/server/connectors/httpserver.h"
-#include "jsonrpccpp/common/exception.h"
 
-#include "stringprintf.h"
+#include "json/json.h"
+#include "json/server.h"
+#include "json/server_connectors_httpserver.h"
+#include "json/common_exception.h"
 
-#include "graph_inference.h"
+#include "src/base/stringprintf.h"
+#include "src/inference/inference.h"
+#include "src/inference/graph_inference.h"
+
 #include "server_log.h"
-#include "inference.h"
 
 DEFINE_string(model, "model", "Input model files");
 DEFINE_string(model_version, "", "Version of the current model");

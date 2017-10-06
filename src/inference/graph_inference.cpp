@@ -14,8 +14,6 @@
    limitations under the License.
  */
 
-#include "graph_inference.h"
-
 #include <stdio.h>
 #include <math.h>
 #include <queue>
@@ -24,15 +22,17 @@
 #include <random>
 #include <iterator>
 
-#include "stringprintf.h"
+#include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include "base.h"
-#include "maputil.h"
-#include "nbest.h"
-#include "simple_histogram.h"
-#include "updatable_priority_queue.h"
+#include "src/base/base.h"
+#include "src/base/maputil.h"
+#include "src/base/nbest.h"
+#include "src/base/simple_histogram.h"
+#include "src/base/stringprintf.h"
+#include "src/base/updatable_priority_queue.h"
 
+#include "graph_inference.h"
 #include "label_set.h"
 
 using nice2protos::Feature;

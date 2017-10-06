@@ -16,6 +16,10 @@
 
 #include "fileutil.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 void ReadFileToStringOrDie(const char* filename, std::string* r) {
   r->clear();
   FILE* f = fopen(filename, "rt");
@@ -30,4 +34,16 @@ void ReadFileToStringOrDie(const char* filename, std::string* r) {
     }
   }
   fclose(f);
+}
+
+void WriteStringToFileOrDie(const char* filename, const std::string& s) {
+  FILE* f = fopen(filename, "wt");
+  CHECK(f != NULL) << "Could not open " << filename << " for writing.";
+  fprintf(f, "%s", s.c_str());
+  fclose(f);
+}
+
+bool FileExists(const char* filename) {
+  struct stat stat_info;
+  return stat(filename, &stat_info) == 0 && !S_ISDIR(stat_info.st_mode);
 }

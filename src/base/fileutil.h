@@ -23,7 +23,7 @@
 #include "glog/logging.h"
 
 void ReadFileToStringOrDie(const char* filename, std::string* r);
-
-
+void WriteStringToFileOrDie(const char* filename, const std::string& s);
+bool FileExists(const char* filename);
 
 #endif /* BASE_FILEUTIL_H_ */

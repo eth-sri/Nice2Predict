@@ -8,12 +8,13 @@
 #ifndef INFERENCE_LABEL_SET_H_
 #define INFERENCE_LABEL_SET_H_
 
-#include "stringset.h"
-#include "maputil.h"
-#include "glog/logging.h"
-
 #include <unordered_map>
 #include <utility>
+
+#include "glog/logging.h"
+
+#include "src/base/maputil.h"
+#include "src/base/stringset.h"
 
 // Utility class to keep a set of labels.
 //

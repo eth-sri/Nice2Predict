@@ -22,12 +22,13 @@
 #include <string.h>
 #include <iterator>
 
-#include "base.h"
+#include "src/base/base.h"
+#include "src/base/maputil.h"
+#include "src/base/stringset.h"
+
 #include "inference.h"
-#include "lock_free_weight.h"
-#include "stringset.h"
-#include "maputil.h"
 #include "label_checker.h"
+#include "lock_free_weight.h"
 
 typedef std::multiset<int> Factor;
 

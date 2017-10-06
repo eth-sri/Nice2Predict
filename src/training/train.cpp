@@ -21,16 +21,17 @@
 #include <thread>
 #include <math.h>
 
-#include "base.h"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include "jsoncpp/json/json.h"
-#include "graph_inference.h"
+#include "json/json.h"
 
-#include "stringprintf.h"
-#include "stringset.h"
-#include "readerutil.h"
+#include "src/base/base.h"
+#include "src/base/readerutil.h"
+#include "src/base/stringprintf.h"
+#include "src/base/stringset.h"
+#include "src/inference/graph_inference.h"
+
 
 const std::string SSVM_TRAIN_NAME = "ssvm";
 const std::string PL_TRAIN_NAME = "pl";

@@ -20,16 +20,16 @@
 #include <mutex>
 #include <thread>
 
-#include "base.h"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include "jsoncpp/json/json.h"
-#include "graph_inference.h"
+#include "json/json.h"
 
-#include "stringprintf.h"
-#include "stringset.h"
-#include "readerutil.h"
+#include "src/base/base.h"
+#include "src/base/readerutil.h"
+#include "src/base/stringprintf.h"
+#include "src/base/stringset.h"
+#include "src/inference/graph_inference.h"
 
 
 DEFINE_string(model, "model", "File prefix for model to evaluate.");

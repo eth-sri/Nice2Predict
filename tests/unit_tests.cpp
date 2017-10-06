@@ -18,9 +18,9 @@
 
 #include "gtest/gtest.h"
 
-#include "base.h"
-#include "graph_inference.h"
-#include "label_set.h"
+#include "src/base/base.h"
+#include "src/inference/graph_inference.h"
+#include "src/inference/label_set.h"
 
 static const size_t mockFactorsLimit = 0;
 

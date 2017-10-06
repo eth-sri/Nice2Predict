@@ -9,7 +9,7 @@
 #include "server_log.h"
 
 #include "glog/logging.h"
-#include "stringprintf.h"
+#include "src/base/stringprintf.h"
 
 Nice2ServerLog::Nice2ServerLog(const std::string& logfile_prefix) {
   time_t tt;

@@ -8,11 +8,11 @@
 #ifndef INFERENCE_LABEL_CHECKER_H_
 #define INFERENCE_LABEL_CHECKER_H_
 
-#include "stringset.h"
 #include <google/dense_hash_map>
 #include <regex>
 
-#include "maputil.h"
+#include "src/base/stringset.h"
+#include "src/base/maputil.h"
 
 // Utility class to check labels if they are in a valid range.
 

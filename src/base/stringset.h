@@ -38,7 +38,7 @@ public:
 	int findString(const char* s) const;
 
 	// Saves the string set to a file.
-	void saveToFile(FILE* f);
+	void saveToFile(FILE* f) const;
 
 	// Loads the string set from a file.
 	bool loadFromFile(FILE* f);

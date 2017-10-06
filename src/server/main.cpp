@@ -14,12 +14,12 @@
    limitations under the License.
  */
 
-#include "nice2server.h"
-
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include "jsonrpccpp/server/connectors/httpserver.h"
+#include "json/server_connectors_httpserver.h"
+
+#include "nice2server.h"
 
 DEFINE_int32(port, 5745, "JSON-RPC Server port");
 DEFINE_int32(num_threads, 8, "Number of serving threads");

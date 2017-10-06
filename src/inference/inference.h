@@ -20,9 +20,10 @@
 #include <mutex>
 #include <string>
 #include <map>
-#include "jsoncpp/json/json.h"
 
-#include "service.pb.h"
+#include "json/json.h"
+
+#include "src/protos/service.pb.h"
 
 typedef ::google::protobuf::RepeatedPtrField<nice2protos::Feature> FeaturesQuery;
 typedef ::google::protobuf::RepeatedPtrField<nice2protos::Assignment> Assignments;
