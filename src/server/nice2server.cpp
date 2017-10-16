@@ -22,18 +22,18 @@
 #include "json/json.h"
 #include "json/server.h"
 #include "json/server_connectors_httpserver.h"
-#include "json/common_exception.h"
 
 #include "src/base/stringprintf.h"
-#include "src/inference/inference.h"
-#include "src/inference/graph_inference.h"
 
 #include "server_log.h"
+#include "src/server/nice2service_internal.h"
+#include "src/server/json_adapter.h"
+
 
 DEFINE_string(model, "model", "Input model files");
 DEFINE_string(model_version, "", "Version of the current model");
-
 DEFINE_string(logfile_prefix, "", "File where to log all requests and responses");
+
 
 namespace {
 void DropTrainingNewLine(std::string* s) {
@@ -44,7 +44,9 @@ void DropTrainingNewLine(std::string* s) {
 
 class Nice2ServerInternal : public jsonrpc::AbstractServer<Nice2ServerInternal> {
 public:
-  Nice2ServerInternal(jsonrpc::HttpServer* server) : jsonrpc::AbstractServer<Nice2ServerInternal>(*server) {
+  explicit Nice2ServerInternal(jsonrpc::HttpServer* server) :
+      jsonrpc::AbstractServer<Nice2ServerInternal>(*server),
+      impl_(FLAGS_model, FLAGS_logfile_prefix) {
     bindAndAddMethod(
         jsonrpc::Procedure("infer", jsonrpc::PARAMS_BY_NAME, jsonrpc::JSON_ARRAY,
             // Parameters:
@@ -68,8 +70,6 @@ public:
             "assign", jsonrpc::JSON_ARRAY,
             NULL),
         &Nice2ServerInternal::showgraph);
-
-    inference_.LoadModel(FLAGS_model);
 
     if (!FLAGS_logfile_prefix.empty()) {
       logging_.reset(new Nice2ServerLog(FLAGS_logfile_prefix));
@@ -111,63 +111,31 @@ public:
   }
 
 
-  void infer(const Json::Value& request, Json::Value& response)
-  {
+  void infer(const Json::Value& request, Json::Value& response) {
     VLOG(3) << request.toStyledString();
     verifyVersion(request);
-    std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
-    query->FromJSON(request["query"]);
-    std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
-    assignment->FromJSON(request["assign"]);
-    inference_.MapInference(query.get(), assignment.get());
-    assignment->ToJSON(&response);
-
+    response = adapter_.InferResponseToJson(impl_.Infer(adapter_.JsonToQuery(request)));
     MaybeLogQuery("infer", request, response);
   }
 
-  void nbest(const Json::Value& request, Json::Value& response)
-  {
-    const int n = request["n"].asInt();
+  void nbest(const Json::Value& request, Json::Value& response) {
     VLOG(3) << request.toStyledString();
     verifyVersion(request);
-
-    const Json::Value& shouldInferParam = request["infer"];
-    // If infer parameter was not provided - set should infer to "false" by default
-    bool shouldInfer = false;
-    if (shouldInferParam != Json::Value::null) {
-      shouldInfer = shouldInferParam.asBool();
-    }
-
-    std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
-    query->FromJSON(request["query"]);
-    std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
-    assignment->FromJSON(request["assign"]);
-    if (shouldInfer) {
-      inference_.MapInference(query.get(), assignment.get());
-    }
-    assignment->GetCandidates(&inference_, n, &response);
-
+    response = adapter_.NBestResponseToJson(impl_.NBest(adapter_.JsonToNBestQuery(request)));
     MaybeLogQuery("nbest", request, response);
   }
 
-  void showgraph(const Json::Value& request, Json::Value& response)
-  {
+  void showgraph(const Json::Value& request, Json::Value& response) {
     VLOG(3) << request.toStyledString();
-    std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
-    query->FromJSON(request["query"]);
-    std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
-    assignment->FromJSON(request["assign"]);
-    if (request.isMember("infer") && request["infer"].asBool() == true) {
-      inference_.MapInference(query.get(), assignment.get());
-    }
-    inference_.DisplayGraph(query.get(), assignment.get(), &response);
-
+    verifyVersion(request);
+    response = adapter_.ShowGraphResponseToJson(impl_.ShowGraph(adapter_.JsonToShowGraphQuery(request)));
     MaybeLogQuery("showgraph", request, response);
   }
 
 private:
-  GraphInference inference_;
   std::unique_ptr<Nice2ServerLog> logging_;
+  Nice2ServiceInternal impl_;
+  JsonAdapter adapter_;
 };
 
 Nice2Server::Nice2Server(jsonrpc::HttpServer* server)

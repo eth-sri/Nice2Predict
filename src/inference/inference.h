@@ -21,8 +21,6 @@
 #include <string>
 #include <map>
 
-#include "json/json.h"
-
 #include "src/protos/service.pb.h"
 
 typedef ::google::protobuf::RepeatedPtrField<nice2protos::Feature> FeaturesQuery;
@@ -35,8 +33,7 @@ class Nice2Query {
 public:
   virtual ~Nice2Query();
 
-  virtual void FromJSON(const Json::Value& query) = 0;
-  virtual void FromFeatureProto(const FeaturesQuery &query) = 0;
+  virtual void FromFeaturesQueryProto(const FeaturesQuery &query) = 0;
 };
 
 struct PrecisionStats {
@@ -73,15 +70,8 @@ public:
   virtual void SetUpEqualityPenalty(double penalty) = 0;
   virtual void ClearPenalty() = 0;
 
-  virtual void FromJSON(const Json::Value& assignment) = 0;
-  virtual void FromPropertyProto(const Assignments &property) = 0;
-  virtual void ToJSON(Json::Value* assignment) const = 0;
+  virtual void FromAssignmentsProto(const Assignments &property) = 0;
   virtual void FillInferResponse(nice2protos::InferResponse* response) const = 0;
-
-  virtual void GetCandidates(
-      Nice2Inference* inference,
-      const int n,
-      Json::Value* response) = 0;
 
   virtual void GetNBestCandidates(
       Nice2Inference* inference,
@@ -145,17 +135,12 @@ public:
 
   // All queries that a SSVM should learn from must be given first with AddQueryToModel.
   // This is to ensure all the relevant features are added to the model.
-  virtual void AddQueryToModel(const Json::Value& query, const Json::Value& assignment) = 0;
+  virtual void AddQueryToModel(const nice2protos::Query &query) = 0;
 
   // Must be called [at least] once before calling SSVMLearn or MapInference.
   virtual void PrepareForInference() = 0;
 
-  // DEBUG methods.
   // Given a query and an assignment, return a graph to visualize the query.
-  virtual void DisplayGraph(
-      const Nice2Query* query,
-      const Nice2Assignment* assignment,
-      Json::Value* graph) const = 0;
 
   virtual void FillGraphProto(
       const Nice2Query* query,

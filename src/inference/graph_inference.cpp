@@ -19,7 +19,6 @@
 #include <queue>
 #include <unordered_set>
 #include <algorithm>
-#include <random>
 #include <iterator>
 
 #include "gflags/gflags.h"
@@ -29,7 +28,6 @@
 #include "src/base/maputil.h"
 #include "src/base/nbest.h"
 #include "src/base/simple_histogram.h"
-#include "src/base/stringprintf.h"
 #include "src/base/updatable_priority_queue.h"
 
 #include "graph_inference.h"
@@ -39,6 +37,7 @@ using nice2protos::Feature;
 using nice2protos::InferResponse;
 using nice2protos::NBestResponse;
 using nice2protos::ShowGraphResponse;
+
 
 DEFINE_bool(initial_greedy_assignment_pass, true, "Whether to run an initial greedy assignment pass.");
 DEFINE_bool(duplicate_name_resolution, true, "Whether to attempt a duplicate name resultion on conflicts.");
@@ -72,27 +71,6 @@ static const size_t kLoopyBPBeamSize = 32;
 
 static const size_t kFactorsLimitBeforeGoingDepperMultiLevelMap = 16;
 
-namespace std {
-  template <> struct hash<Json::Value> {
-    size_t operator()(const Json::Value& v) const {
-      if (v.isInt()) {
-        return hash<int>()(v.asInt());
-      }
-      if (v.isString()) {
-        const char* str = v.asCString();
-        size_t r = 1;
-        while (*str) {
-          r = (r * 17) + (*str);
-          ++str;
-        }
-        return r;
-      }
-      LOG(INFO) << v;
-      return 0;
-    }
-  };
-}
-
 // Returns -1 if the result will overflow.
 uint64 CalculateFactorial(int n) {
   uint64 result = 1;
@@ -118,41 +96,6 @@ uint64 HashInt(uint64 x) {
   return x;
 }
 
-class JsonValueNumberer {
-public:
-  int ValueToNumber(const Json::Value& val) {
-    auto ins = data_.insert(std::pair<Json::Value, int>(val, data_.size()));
-    if (ins.second) {
-      number_to_value_.push_back(val);
-    }
-    return ins.first->second;
-  }
-
-  int ValueToNumberOrDie(const Json::Value& val) const {
-    auto it = data_.find(val);
-    CHECK(it != data_.end());
-    return it->second;
-  }
-
-  int ValueToNumberWithDefault(const Json::Value& val, int default_number) const {
-    auto it = data_.find(val);
-    if(it == data_.end()) return default_number;
-    return it->second;
-  }
-
-  const Json::Value& NumberToValue(int number) const {
-    return number_to_value_[number];
-  }
-
-  int size() const {
-    return data_.size();
-  }
-
-private:
-  std::unordered_map<Json::Value, int> data_;
-  std::vector<Json::Value> number_to_value_;
-};
-
 
 class GraphQuery : public Nice2Query {
 public:
@@ -163,81 +106,7 @@ public:
   virtual ~GraphQuery() {
   }
 
-  virtual void FromJSON(const Json::Value& query) override {
-    arcs_.clear();
-    factors_.clear();
-
-    CHECK(query.isArray());
-    for (const Json::Value& arc : query) {
-      if (arc.isMember("f2")) {
-        // A factor connecting two facts (an arc).
-        Arc a;
-        a.node_a = numberer_.ValueToNumber(arc["a"]);
-        a.node_b = numberer_.ValueToNumber(arc["b"]);
-        a.type = label_set_.ss()->findString(arc["f2"].asCString());
-        if (a.type < 0) continue;
-        arcs_.push_back(a);
-      }
-      if (arc.isMember("cn")) {
-        // A scope that lists names that cannot be assigned to the same value.
-        const Json::Value& v = arc["n"];
-        if (v.isArray()) {
-          std::vector<int> scope_vars;
-          scope_vars.reserve(v.size());
-          for (const Json::Value& item : v) {
-            scope_vars.push_back(numberer_.ValueToNumber(item));
-          }
-          std::sort(scope_vars.begin(), scope_vars.end());
-          scope_vars.erase(std::unique(scope_vars.begin(), scope_vars.end()), scope_vars.end());
-          nodes_in_scope_.push_back(std::move(scope_vars));
-        }
-      }
-      if (FLAGS_use_factors) {
-        if (arc.isMember("group")) {
-          const Json::Value& v = arc["group"];
-          if (v.isArray()) {
-            Factor factor_vars;
-            for (const Json::Value& item : v) {
-              factor_vars.insert(numberer_.ValueToNumber(item));
-            }
-            factors_.push_back(factor_vars);
-          }
-        }
-      }
-    }
-    std::sort(arcs_.begin(), arcs_.end());
-    arcs_adjacent_to_node_.assign(numberer_.size(), std::vector<Arc>());
-    for (const Arc& a : arcs_) {
-      arcs_adjacent_to_node_[a.node_a].push_back(a);
-      arcs_adjacent_to_node_[a.node_b].push_back(a);
-    }
-    for (std::vector<Arc>& v : arcs_adjacent_to_node_) {
-      std::sort(v.begin(), v.end());
-      v.erase(std::unique(v.begin(), v.end()), v.end());
-    }
-
-    arcs_connecting_node_pair_.clear();
-    for (const Arc& a : arcs_) {
-      arcs_connecting_node_pair_[IntPair(a.node_a, a.node_b)].push_back(a);
-      arcs_connecting_node_pair_[IntPair(a.node_b, a.node_a)].push_back(a);
-    }
-
-    scopes_per_nodes_.assign(numberer_.size(), std::vector<int>());
-    for (size_t scope = 0; scope < nodes_in_scope_.size(); ++scope) {
-      for (int node : nodes_in_scope_[scope]) {
-        scopes_per_nodes_[node].push_back(scope);
-      }
-    }
-
-    factors_of_a_node_.assign(numberer_.size(), std::vector<int>());
-    for (size_t i = 0; i < factors_.size(); ++i) {
-      for (auto var = factors_[i].begin(); var != factors_[i].end(); ++var) {
-        factors_of_a_node_[*var].push_back(i);
-      }
-    }
-  }
-
-  virtual void FromFeatureProto(const FeaturesQuery &query) override {
+  virtual void FromFeaturesQueryProto(const FeaturesQuery &query) override {
     arcs_.clear();
     factors_.clear();
 
@@ -327,7 +196,6 @@ private:
   std::vector<Arc> arcs_;
   std::vector<Factor> factors_;
   google::dense_hash_map<IntPair, std::vector<Arc> > arcs_connecting_node_pair_;
-  JsonValueNumberer numberer_;
 
   LabelSet label_set_;
 
@@ -369,8 +237,6 @@ class GraphNodeAssignment : public Nice2Assignment {
 public:
   GraphNodeAssignment(const GraphQuery* query, LabelSet* label_set, int unknown_label)
     : query_(query), label_set_(label_set), unknown_label_(unknown_label) {
-    assignments_.assign(query_->numberer_.size(), Assignment());
-    penalties_.assign(assignments_.size(), LabelPenalty());
   }
   virtual ~GraphNodeAssignment() {
   }
@@ -389,29 +255,7 @@ public:
     penalties_.assign(assignments_.size(), LabelPenalty());
   }
 
-  virtual void FromJSON(const Json::Value& assignment) override {
-    CHECK(assignment.isArray());
-    assignments_.assign(query_->numberer_.size(), Assignment());
-    for (const Json::Value& a : assignment) {
-      Assignment aset;
-      if (a.isMember("inf")) {
-        aset.label = label_set_->AddLabelName(a["inf"].asCString());
-        aset.must_infer = true;
-      } else {
-        CHECK(a.isMember("giv"));
-        aset.label = label_set_->AddLabelName(a["giv"].asCString());
-        aset.must_infer = false;
-      }
-      int number = query_->numberer_.ValueToNumberWithDefault(a.get("v", Json::Value::null), -1);
-      if (number != -1) {
-        assignments_[number] = aset;
-      }
-    }
-
-    ClearPenalty();
-  }
-
-  virtual void FromPropertyProto(const Assignments &assignments) override {
+  virtual void FromAssignmentsProto(const Assignments &assignments) override {
     size_t variables_count = query_->arcs_adjacent_to_node_.size();
     assignments_.assign(variables_count, Assignment());
     for (const auto& assignment : assignments) {
@@ -423,23 +267,6 @@ public:
       }
     }
     ClearPenalty();
-  }
-
-  virtual void ToJSON(Json::Value* assignment) const override {
-    *assignment = Json::Value(Json::arrayValue);
-    for (size_t i = 0; i < assignments_.size(); ++i) {
-      if (assignments_[i].label < 0) continue;
-
-      Json::Value obj(Json::objectValue);
-      obj["v"] = query_->numberer_.NumberToValue(i);
-      const char* str_value = label_set_->GetLabelName(assignments_[i].label);
-      if (assignments_[i].must_infer) {
-        obj["inf"] = Json::Value(str_value);
-      } else {
-        obj["giv"] = Json::Value(str_value);
-      }
-      assignment->append(obj);
-    }
   }
 
   virtual void FillInferResponse(InferResponse* response) const override {
@@ -478,31 +305,6 @@ public:
     });
   }
  
-  virtual void GetCandidates(
-      Nice2Inference* inference,
-      const int n,
-      Json::Value* response) override {
-    *response = Json::Value(Json::arrayValue);
-    
-    std::vector<std::pair<int, double>> scored_candidates;
-    for (size_t i = 0; i < assignments_.size(); ++i) {
-      if (assignments_[i].must_infer) {
-        GetCandidatesForNode(inference, i, &scored_candidates);
-        Json::Value node_results(Json::objectValue);
-        node_results["v"] = query_->numberer_.NumberToValue(i);
-        Json::Value node_candidate(Json::arrayValue);
-        // Take only the top-n candidates to the response
-        for (size_t j = 0; j < scored_candidates.size() && j < (size_t)((unsigned)n) ; j++) {
-          Json::Value obj(Json::objectValue);
-          obj["label"] = label_set_->GetLabelName(scored_candidates[j].first);
-          obj["score"] = scored_candidates[j].second;
-          node_candidate.append(obj);
-        }
-        node_results["candidates"] = node_candidate;
-        response->append(node_results);
-      }
-    }
-  }
 
   virtual void GetNBestCandidates(
       Nice2Inference* inference,
@@ -1752,48 +1554,6 @@ void GraphInference::PLLearn(
   }
 }
 
-void GraphInference::DisplayGraph(
-    const Nice2Query* query,
-    const Nice2Assignment* assignment,
-    Json::Value* graph) const {
-  const GraphNodeAssignment* a = static_cast<const GraphNodeAssignment*>(assignment);
-  Json::Value& nodes = (*graph)["nodes"];
-  for (size_t i = 0; i < a->assignments_.size(); ++i) {
-    if (a->assignments_[i].must_infer ||
-        !a->query_->arcs_adjacent_to_node_[i].empty()) {
-      // Include the node.
-      Json::Value node;
-      node["id"] = Json::Value(StringPrintf("N%d", static_cast<int>(i)));
-      int label = a->assignments_[i].label;
-      node["label"] = Json::Value(label < 0 ? StringPrintf("%d", label).c_str() : a->GetLabelName(label));
-      node["color"] = Json::Value(a->assignments_[i].must_infer ? "#6c9ba4" : "#96816a");
-      nodes.append(node);
-    }
-  }
-  std::unordered_map<IntPair, std::string> dedup_arcs;
-  for (const GraphQuery::Arc& arc : a->query_->arcs_) {
-    std::string& s = dedup_arcs[IntPair(std::min(arc.node_a, arc.node_b),std::max(arc.node_a, arc.node_b))];
-    if (!s.empty()) {
-      s.append(", ");
-    }
-    StringAppendF(&s, "%s - %.2f",
-        a->GetLabelName(arc.type),
-        a->GetNodePairScore(*this, arc.node_a, arc.node_b, a->assignments_[arc.node_a].label, a->assignments_[arc.node_b].label));
-  }
-
-  Json::Value& edges = (*graph)["edges"];
-  int edge_id = 0;
-  for (auto it = dedup_arcs.begin(); it != dedup_arcs.end(); ++it) {
-    Json::Value edge;
-    edge["id"] = Json::Value(StringPrintf("Edge%d", edge_id));
-    edge["label"] = Json::Value(it->second);
-    edge["source"] = Json::Value(StringPrintf("N%d", static_cast<int>(it->first.first)));
-    edge["target"] = Json::Value(StringPrintf("N%d", static_cast<int>(it->first.second)));
-    edges.append(edge);
-    edge_id++;
-  }
-}
-
 void GraphInference::FillGraphProto(
     const Nice2Query* query,
     const Nice2Assignment* assignment,
@@ -1832,60 +1592,47 @@ void GraphInference::FillGraphProto(
   }
 }
 
-void GraphInference::AddQueryToModel(const Json::Value& query, const Json::Value& assignment) {
-  CHECK(query.isArray());
-  CHECK(assignment.isArray());
-  JsonValueNumberer numb;
+void GraphInference::AddQueryToModel(const nice2protos::Query &query) {
   std::unordered_map<int, int> values;
   std::set<int> unique_values;
-  for (const Json::Value& a : assignment) {
-    int value;
-    if (a.isMember("inf")) {
-      value = strings_.addString(a.get("inf", Json::Value::null).asCString());
-    } else {
-      CHECK(a.isMember("giv"));
-      value = strings_.addString(a.get("giv", Json::Value::null).asCString());
-    }
-    values[numb.ValueToNumber(a.get("v", Json::Value::null))] = value;
+  for (const auto& a : query.assignments()) {
+    int value = strings_.addString(a.label().c_str());
+    values[a.index()] = value;
     unique_values.insert(value);
   }
   for (int value : unique_values) {
     ++label_frequency_[value];
   }
 
-  for (const Json::Value& arc : query) {
-    if (arc.isMember("f2")) {
+  for (const auto& f : query.features()) {
+    if (f.has_binary_relation()) {
       GraphFeature feature(
-          FindWithDefault(values, numb.ValueToNumber(arc.get("a", Json::Value::null)), -1),
-          FindWithDefault(values, numb.ValueToNumber(arc.get("b", Json::Value::null)), -1),
-          strings_.addString(arc.get("f2", Json::Value::null).asCString()));
+          FindWithDefault(values, f.binary_relation().first(), -1),
+          FindWithDefault(values, f.binary_relation().second(), -1),
+          strings_.addString(f.binary_relation().relation().c_str()));
       if (feature.a_ != -1 && feature.b_ != -1) {
         features_[feature].nonAtomicAdd(1);
       }
     }
 
-    if (FLAGS_use_factors) {
-      if (arc.isMember("group")) {
-        const Json::Value& v = arc["group"];
-        if (v.isArray()) {
-          Factor factor_vars;
-          uint64 hash = 0;
-          for (const Json::Value& item : v) {
-            int value = FindWithDefault(values, numb.ValueToNumber(item), -1);
-            if (value == -1) {
-              factor_vars.clear();
-              break;
-            }
-            factor_vars.insert(value);
-            hash += HashInt(value);
-          }
-          if (factor_vars.empty()) {
-            continue;
-          }
-          factors_set_.insert(factor_vars);
-          factor_features_[hash] += 1;
+    if (FLAGS_use_factors && f.has_factor_variables()) {
+      const auto& fv = f.factor_variables();
+      Factor factor_vars;
+      uint64 hash = 0;
+      for (const auto& item : fv.indices()) {
+        int value = FindWithDefault(values, item, -1);
+        if (value == -1) {
+          factor_vars.clear();
+          break;
         }
+        factor_vars.insert(value);
+        hash += HashInt(value);
       }
+      if (factor_vars.empty()) {
+        continue;
+      }
+      factors_set_.insert(factor_vars);
+      factor_features_[hash] += 1;
     }
   }
 }

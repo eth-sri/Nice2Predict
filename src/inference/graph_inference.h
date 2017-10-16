@@ -199,13 +199,8 @@ public:
       const Nice2Assignment* assignment,
       double learning_rate) override;
 
-  virtual void AddQueryToModel(const Json::Value& query, const Json::Value& assignment) override;
+  virtual void AddQueryToModel(const nice2protos::Query &query) override;
   virtual void PrepareForInference() override;
-
-  virtual void DisplayGraph(
-      const Nice2Query* query,
-      const Nice2Assignment* assignment,
-      Json::Value* graph) const override;
 
   virtual void FillGraphProto(
       const Nice2Query* query,

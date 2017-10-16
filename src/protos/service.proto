@@ -8,7 +8,7 @@ package nice2protos;
 service Nice2Service {
   // Infer query initiates MAP inference of unknown labels based on features
   // and known assignemnts provided. The response contains best assignments.
-  rpc Infer (InferQuery) returns (InferResponse) {}
+  rpc Infer (Query) returns (InferResponse) {}
   // NBest query runs the MAP inference if necessary. The response contains N
   // candidates for each assignment together with their scores.
   rpc NBest (NBestQuery) returns (NBestResponse) {}
@@ -68,13 +68,13 @@ message Assignment {
 
 // Message containing all the information that is necessary to perform
 // MAP inference and obtain labels that are not given.
-message InferQuery {
+message Query {
   repeated Feature features = 1;
   repeated Assignment assignments = 2;
 }
 
 message NBestQuery {
-  InferQuery query = 1;
+  Query query = 1;
   // Number of candidates to be returned for each assignemnt.
   int32 n = 2;
   // Whether the inference already performed.
@@ -82,7 +82,7 @@ message NBestQuery {
 }
 
 message ShowGraphQuery {
-  InferQuery query = 1;
+  Query query = 1;
   // Whether the inference already performed.
   bool should_infer = 2;
 }

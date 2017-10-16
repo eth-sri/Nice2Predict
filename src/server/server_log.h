@@ -13,6 +13,8 @@
 #include <mutex>
 #include <string>
 
+#include "gflags/gflags.h"
+
 // Implements logging for the server requests/responses.
 class Nice2ServerLog {
 public:

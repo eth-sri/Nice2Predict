@@ -14,13 +14,12 @@
    limitations under the License.
  */
 
-#define GTEST_HAS_TR1_TUPLE 0
-
 #include "gtest/gtest.h"
+#include "json/json.h"
+#include "glog/logging.h"
 
-#include "src/base/base.h"
 #include "src/inference/graph_inference.h"
-#include "src/inference/label_set.h"
+#include "src/server/json_adapter.h"
 
 static const size_t mockFactorsLimit = 0;
 
@@ -98,26 +97,28 @@ TEST(FactorFeaturesLevelTest, NextLevelCorrectNumberOfEntriesWithOneDuplicatedLa
   EXPECT_EQ(3, unit_under_test.next_level.size());
 }
 
-void SetUpUnitUnderTest(const std::string training_data_sample, GraphInference& unit_under_test) {
+void SetUpUnitUnderTest(const std::string &training_data_sample, GraphInference& unit_under_test, JsonAdapter &adapter) {
   Json::Reader jsonreader;
   Json::Value training_data_sample_value;
   jsonreader.parse(training_data_sample, training_data_sample_value, false);
-  unit_under_test.AddQueryToModel(training_data_sample_value["query"], training_data_sample_value["assign"]);
+  unit_under_test.AddQueryToModel(adapter.JsonToQuery(training_data_sample_value));
   unit_under_test.PrepareForInference();
 }
 
 void ComputePrecisionStats(std::vector<std::string> ref_data_samples,
     PrecisionStats* precision_stats,
-    GraphInference unit_under_test,
-    Nice2Assignment* inferred_assignment) {
+    GraphInference &unit_under_test,
+    Nice2Assignment* inferred_assignment,
+    JsonAdapter &adapter) {
   Json::Reader jsonreader;
   for(auto it = ref_data_samples.begin(); it != ref_data_samples.end(); it++) {
     Json::Value ref_data_sample;
     jsonreader.parse(*it, ref_data_sample, false);
     Nice2Query* ref_query = unit_under_test.CreateQuery();
-    ref_query->FromJSON(ref_data_sample["query"]);
+    nice2protos::Query proto_query = adapter.JsonToQuery(ref_data_sample);
+    ref_query->FromFeaturesQueryProto(proto_query.features());
     Nice2Assignment* ref_assignment = unit_under_test.CreateAssignment(ref_query);
-    ref_assignment->FromJSON(ref_data_sample["assign"]);
+    ref_assignment->FromAssignmentsProto(proto_query.assignments());
     inferred_assignment->CompareAssignments(ref_assignment, precision_stats);
   }
 }
@@ -131,15 +132,17 @@ TEST(MapInferenceTest, GivesCorrectAssignmentWithPairwiseFeature) {
         "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
         "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
+  JsonAdapter adapter;
   Json::Reader jsonreader;
   Json::Value data_sample_value;
   jsonreader.parse(data_sample, data_sample_value, false);
   GraphInference unit_under_test;
-  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  SetUpUnitUnderTest(training_data_sample, unit_under_test, adapter);
   Nice2Query* query = unit_under_test.CreateQuery();
-  query->FromJSON(data_sample_value["query"]);
+  nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
+  query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromJSON(data_sample_value["assign"]);
+  assignment->FromAssignmentsProto(proto_query.assignments());
   unit_under_test.MapInference(query, assignment);
 
   const std::string ref_data_sample = "{\"query\":[{\"a\":0,\"b\":3,\"f2\":\"mock\"}]," \
@@ -148,7 +151,7 @@ TEST(MapInferenceTest, GivesCorrectAssignmentWithPairwiseFeature) {
   std::vector<std::string> ref_data_samples;
   ref_data_samples.push_back(ref_data_sample);
   PrecisionStats precision_stats;
-  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment, adapter);
 
   EXPECT_EQ(0, precision_stats.incorrect_labels);
 }
@@ -162,15 +165,17 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTest) {
       "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
       "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
+  JsonAdapter adapter;
   Json::Reader jsonreader;
   Json::Value data_sample_value;
   jsonreader.parse(data_sample, data_sample_value, false);
   GraphInference unit_under_test;
-  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  SetUpUnitUnderTest(training_data_sample, unit_under_test, adapter);
   Nice2Query* query = unit_under_test.CreateQuery();
-  query->FromJSON(data_sample_value["query"]);
+  nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
+  query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromJSON(data_sample_value["assign"]);
+  assignment->FromAssignmentsProto(proto_query.assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -185,7 +190,7 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTest) {
   ref_data_samples.push_back(ref_data_sample_first_permutation);
   ref_data_samples.push_back(ref_data_sample_second_permutation);
   PrecisionStats precision_stats;
-  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment, adapter);
 
   EXPECT_GE(2, precision_stats.incorrect_labels);
 }
@@ -199,15 +204,17 @@ TEST(MapInferenceTest, GivesCorrectPermutationOfFactorFeatureTest) {
       "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
       "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
+  JsonAdapter adapter;
   Json::Reader jsonreader;
   Json::Value data_sample_value;
   jsonreader.parse(data_sample, data_sample_value, false);
   GraphInference unit_under_test;
-  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  SetUpUnitUnderTest(training_data_sample, unit_under_test, adapter);
   Nice2Query* query = unit_under_test.CreateQuery();
-  query->FromJSON(data_sample_value["query"]);
+  nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
+  query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromJSON(data_sample_value["assign"]);
+  assignment->FromAssignmentsProto(proto_query.assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -217,7 +224,7 @@ TEST(MapInferenceTest, GivesCorrectPermutationOfFactorFeatureTest) {
   std::vector<std::string> ref_data_samples;
   ref_data_samples.push_back(ref_data_sample);
   PrecisionStats precision_stats;
-  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment, adapter);
 
   EXPECT_EQ(0, precision_stats.incorrect_labels);
 }
@@ -231,15 +238,17 @@ TEST(MapInferenceTest, GivesCorrectPermutationOfFactorFeatureTestGivenOneVarInf)
       "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
       "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
+  JsonAdapter adapter;
   Json::Reader jsonreader;
   Json::Value data_sample_value;
   jsonreader.parse(data_sample, data_sample_value, false);
   GraphInference unit_under_test;
-  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  SetUpUnitUnderTest(training_data_sample, unit_under_test, adapter);
   Nice2Query* query = unit_under_test.CreateQuery();
-  query->FromJSON(data_sample_value["query"]);
+  nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
+  query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromJSON(data_sample_value["assign"]);
+  assignment->FromAssignmentsProto(proto_query.assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -249,7 +258,7 @@ TEST(MapInferenceTest, GivesCorrectPermutationOfFactorFeatureTestGivenOneVarInf)
   std::vector<std::string> ref_data_samples;
   ref_data_samples.push_back(ref_data_sample);
   PrecisionStats precision_stats;
-  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment, adapter);
 
   // Since it either 1 of the two permutations the number of errors must be less than or equal 2
   EXPECT_EQ(0, precision_stats.incorrect_labels);
@@ -264,15 +273,17 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenAllInfVars)
       "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
       "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
+  JsonAdapter adapter;
   Json::Reader jsonreader;
   Json::Value data_sample_value;
   jsonreader.parse(data_sample, data_sample_value, false);
   GraphInference unit_under_test;
-  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  SetUpUnitUnderTest(training_data_sample, unit_under_test, adapter);
   Nice2Query* query = unit_under_test.CreateQuery();
-  query->FromJSON(data_sample_value["query"]);
+  nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
+  query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromJSON(data_sample_value["assign"]);
+  assignment->FromAssignmentsProto(proto_query.assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -287,7 +298,7 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenAllInfVars)
   ref_data_samples.push_back(ref_data_sample_first_permutation);
   ref_data_samples.push_back(ref_data_sample_second_permutation);
   PrecisionStats precision_stats;
-  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment, adapter);
 
   // Since it either 1 of the two permutations the number of errors must be less than or equal to 2
   EXPECT_GE(2, precision_stats.incorrect_labels);
@@ -302,15 +313,17 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenOneGivVar) 
       "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"AST_Node\"}," \
       "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
+  JsonAdapter adapter;
   Json::Reader jsonreader;
   Json::Value data_sample_value;
   jsonreader.parse(data_sample, data_sample_value, false);
   GraphInference unit_under_test;
-  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  SetUpUnitUnderTest(training_data_sample, unit_under_test, adapter);
   Nice2Query* query = unit_under_test.CreateQuery();
-  query->FromJSON(data_sample_value["query"]);
+  nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
+  query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromJSON(data_sample_value["assign"]);
+  assignment->FromAssignmentsProto(proto_query.assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -325,7 +338,7 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenOneGivVar) 
   ref_data_samples.push_back(ref_data_sample_first_permutation);
   ref_data_samples.push_back(ref_data_sample_second_permutation);
   PrecisionStats precision_stats;
-  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment, adapter);
 
   // Since it either 1 of the two permutations the number of errors must be less than or equal to 2
   EXPECT_GE(2, precision_stats.incorrect_labels);
@@ -340,15 +353,17 @@ TEST(MapInferenceTest, GivesCorrectPermutationsOfFactorFeatureTestGivenDuplicate
       "\"assign\":[{\"v\":0,\"inf\":\"a\"},{\"v\":1,\"giv\":\"split\"}," \
       "{\"v\":2,\"inf\":\"b\"},{\"v\":3,\"giv\":\"split\"},{\"v\":4,\"giv\":\"step\"}]}";
 
+  JsonAdapter adapter;
   Json::Reader jsonreader;
   Json::Value data_sample_value;
   jsonreader.parse(data_sample, data_sample_value, false);
   GraphInference unit_under_test;
-  SetUpUnitUnderTest(training_data_sample, unit_under_test);
+  SetUpUnitUnderTest(training_data_sample, unit_under_test, adapter);
   Nice2Query* query = unit_under_test.CreateQuery();
-  query->FromJSON(data_sample_value["query"]);
+  nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
+  query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromJSON(data_sample_value["assign"]);
+  assignment->FromAssignmentsProto(proto_query.assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -359,7 +374,7 @@ TEST(MapInferenceTest, GivesCorrectPermutationsOfFactorFeatureTestGivenDuplicate
   std::vector<std::string> ref_data_samples;
   ref_data_samples.push_back(ref_data_sample_first_permutation);
   PrecisionStats precision_stats;
-  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment);
+  ComputePrecisionStats(ref_data_samples, &precision_stats, unit_under_test, assignment, adapter);
 
   EXPECT_EQ(0, precision_stats.incorrect_labels);
 }

@@ -17,8 +17,6 @@
 #ifndef N2_NICE2SERVER_H__
 #define N2_NICE2SERVER_H__
 
-#include "glog/logging.h"
-
 namespace jsonrpc {
 class HttpServer;
 }

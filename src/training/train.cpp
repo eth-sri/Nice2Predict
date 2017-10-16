@@ -28,10 +28,10 @@
 
 #include "src/base/base.h"
 #include "src/base/readerutil.h"
-#include "src/base/stringprintf.h"
-#include "src/base/stringset.h"
 #include "src/inference/graph_inference.h"
+#include "src/server/json_adapter.h"
 
+using nice2protos::Query;
 
 const std::string SSVM_TRAIN_NAME = "ssvm";
 const std::string PL_TRAIN_NAME = "pl";
@@ -42,6 +42,7 @@ const std::string PROP_SQRT_PASS_LEARN_RATE_UPDATE_PL = "prop_sqrt_pass";
 const std::string PROP_PASS_LEARN_RATE_UPDATE_PL = "prop_pass";
 const std::string PROP_INITIAL_LEARN_RATE_AND_PASS_LEARN_RATE_UPDATE_PL = "prop_pass_and_initial_learn_rate";
 
+DEFINE_bool(json_input, false, "Whether to expect input file in json or protobuf format");
 DEFINE_string(input, "testdata", "Input file with JSON objects regarding training data");
 DEFINE_string(out_model, "model", "File prefix for output models");
 DEFINE_bool(hogwild, true, "Whether to use Hogwild parallel training.");
@@ -64,8 +65,9 @@ DEFINE_double(initial_learning_rate_ssvm, 0.1, "Initial learning rate of SSVM in
 DEFINE_string(learning_rate_update_formula_pl, PROP_PASS_LEARN_RATE_UPDATE_PL,"Learning update formula for PL learning. ");
 DEFINE_double(pl_lambda, 1.0, "Lambda used in the formula for computing the learning rate proportional to the training pass and the initial learning rate.");
 
-typedef std::function<void(const Json::Value&, const Json::Value&)> InputProcessor;
-void ForeachInput(RecordInput* input, InputProcessor proc) {
+typedef std::function<void(const Query& query)> InputProcessor;
+
+void ForeachInput(RecordInput* input, InputProcessor proc, JsonAdapter& adapter) {
   std::unique_ptr<InputRecordReader> reader(input->CreateReader());
   Json::Reader jsonreader;
   while (!reader->ReachedEnd()) {
@@ -76,12 +78,12 @@ void ForeachInput(RecordInput* input, InputProcessor proc) {
     if (!jsonreader.parse(line, v, false)) {
       LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages();
     } else {
-      proc(v["query"], v["assign"]);
+      proc(adapter.JsonToQuery(v));
     }
   }
 }
 
-void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc) {
+void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc, JsonAdapter &adapter) {
   std::string line;
   Json::Reader jsonreader;
   while (!reader->ReachedEnd()) {
@@ -92,37 +94,37 @@ void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc) {
     if (!jsonreader.parse(line, v, false)) {
       LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages() << "\n" << line;
     } else {
-      proc(v["query"], v["assign"]);
+      proc(adapter.JsonToQuery(v));
     }
   }
 }
 
-typedef std::function<void(const std::string&)> RawInputProcessor;
-void ProcessRawLinesParallel(InputRecordReader* reader, RawInputProcessor proc) {
+typedef std::function<void(const std::string&, JsonAdapter &adapter)> RawInputProcessor;
+void ProcessRawLinesParallel(InputRecordReader* reader, RawInputProcessor proc, JsonAdapter &adapter) {
   std::string line;
   while (!reader->ReachedEnd()) {
     std::string line;
     reader->Read(&line);
     if (line.empty()) continue;
-    proc(line);
+    proc(line, adapter);
   }
 }
 
-void ParallelForeachRawInput(RecordInput* input, RawInputProcessor proc) {
+void ParallelForeachRawInput(RecordInput* input, RawInputProcessor proc, JsonAdapter &adapter) {
   // Do parallel ForEach
   std::unique_ptr<InputRecordReader> reader(input->CreateReader());
   std::vector<std::thread> threads;
   for (int i = 0; i < FLAGS_num_threads; ++i) {
-    threads.push_back(std::thread(std::bind(&ProcessRawLinesParallel, reader.get(), proc)));
+    threads.push_back(std::thread(std::bind(&ProcessRawLinesParallel, reader.get(), proc, adapter)));
   }
   for (auto& thread : threads){
     thread.join();
   }
 }
 
-void ParallelForeachInput(RecordInput* input, InputProcessor proc) {
+void ParallelForeachInput(RecordInput* input, InputProcessor proc, JsonAdapter &adapter) {
   if (!FLAGS_hogwild) {
-    ForeachInput(input, proc);
+    ForeachInput(input, proc, adapter);
     return;
   }
 
@@ -130,21 +132,21 @@ void ParallelForeachInput(RecordInput* input, InputProcessor proc) {
   std::unique_ptr<InputRecordReader> reader(input->CreateReader());
   std::vector<std::thread> threads;
   for (int i = 0; i < FLAGS_num_threads; ++i) {
-    threads.push_back(std::thread(std::bind(&ProcessLinesParallel, reader.get(), proc)));
+    threads.push_back(std::thread(std::bind(&ProcessLinesParallel, reader.get(), proc, adapter)));
   }
   for (auto& thread : threads){
     thread.join();
   }
 }
 
-void InitTrain(RecordInput* input, GraphInference* inference) {
+void InitTrain(RecordInput* input, GraphInference* inference, JsonAdapter &adapter) {
   int count = 0;
   std::mutex mutex;
-  ParallelForeachInput(input, [&inference,&count,&mutex](const Json::Value& query, const Json::Value& assign) {
+  ParallelForeachInput(input, [&inference,&count,&mutex](const Query& query) {
     std::lock_guard<std::mutex> lock(mutex);
-    inference->AddQueryToModel(query, assign);
+    inference->AddQueryToModel(query);
     ++count;
-  });
+  }, adapter);
   LOG(INFO) << "Loaded " << count << " training data samples.";
   inference->PrepareForInference();
 }
@@ -152,29 +154,30 @@ void InitTrain(RecordInput* input, GraphInference* inference) {
 
 
 
-void TestInference(RecordInput* input, GraphInference* inference) {
+void TestInference(RecordInput* input, GraphInference* inference, JsonAdapter &adapter) {
   int64 start_time = GetCurrentTimeMicros();
   double score_gain = 0;
   // int count = 0;
-  ForeachInput(input, [&](const Json::Value& query, const Json::Value& assign) {
+  ForeachInput(input, [&](const Query& query) {
     // if (count >= 10) return;
     // count++;
     Nice2Query* q = inference->CreateQuery();
-    q->FromJSON(query);
+    q->FromFeaturesQueryProto(query.features());
     Nice2Assignment* a = inference->CreateAssignment(q);
-    a->FromJSON(assign);
+    a->FromAssignmentsProto(query.assignments());
     double start_score = inference->GetAssignmentScore(a);
     inference->MapInference(q, a);
     score_gain += inference->GetAssignmentScore(a) - start_score;
     delete a;
     delete q;
-  });
+  }, adapter);
   int64 end_time = GetCurrentTimeMicros();
   LOG(INFO) << "Inference took " << (end_time - start_time) / 1000 << "ms for gain of " << score_gain << ".";
 
 }
 
-void TrainPL(RecordInput* input, GraphInference* inference, int num_training_passes, double start_learning_rate) {
+void TrainPL(RecordInput* input, GraphInference* inference, int num_training_passes, double start_learning_rate,
+    JsonAdapter &adapter) {
   inference->InitializeFeatureWeights(FLAGS_regularization_const);
   inference->PLInit(FLAGS_max_labels_z);
   double learning_rate = start_learning_rate;
@@ -193,13 +196,13 @@ void TrainPL(RecordInput* input, GraphInference* inference, int num_training_pas
       learning_rate = start_learning_rate / (1 + FLAGS_pl_lambda * (pass + 1));
     }
 
-    ParallelForeachInput(input, [&inference,&learning_rate,pass](const Json::Value& query, const Json::Value& assign) {
+    ParallelForeachInput(input, [&inference,&learning_rate,pass](const Query& query) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
-      q->FromJSON(query);
+      q->FromFeaturesQueryProto(query.features());
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-      a->FromJSON(assign);
+      a->FromAssignmentsProto(query.assignments());
       inference->PLLearn(q.get(), a.get(), learning_rate);
-    });
+    }, adapter);
 
     int64 end_time = GetCurrentTimeMicros();
     LOG(INFO) << "Training pass took " << (end_time - start_time) / 1000 << "ms.";
@@ -210,7 +213,8 @@ void TrainPL(RecordInput* input, GraphInference* inference, int num_training_pas
   }
 }
 
-void TrainSSVM(RecordInput* input, GraphInference* inference, int num_training_passes, double start_learning_rate) {
+void TrainSSVM(RecordInput* input, GraphInference* inference, int num_training_passes, double start_learning_rate,
+    JsonAdapter &adapter) {
   if (FLAGS_training_method.compare(PL_SSVM_TRAIN_NAME) != 0) {
     inference->InitializeFeatureWeights(FLAGS_regularization_const);
   }
@@ -231,13 +235,13 @@ void TrainSSVM(RecordInput* input, GraphInference* inference, int num_training_p
     int64 start_time = GetCurrentTimeMicros();
     PrecisionStats stats;
 
-    ParallelForeachInput(input, [&inference,&stats,&learning_rate,pass](const Json::Value& query, const Json::Value& assign) {
+    ParallelForeachInput(input, [&inference,&stats,&learning_rate,pass](const Query& query) {
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
-      q->FromJSON(query);
+      q->FromFeaturesQueryProto(query.features());
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-      a->FromJSON(assign);
+      a->FromAssignmentsProto(query.assignments());
       inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
-    });
+    }, adapter);
 
     int64 end_time = GetCurrentTimeMicros();
     LOG(INFO) << "Training pass took " << (end_time - start_time) / 1000 << "ms.";
@@ -259,40 +263,40 @@ void TrainSSVM(RecordInput* input, GraphInference* inference, int num_training_p
 
 
 
-void PrintConfusion() {
+void PrintConfusion(JsonAdapter &adapter) {
   std::unique_ptr<RecordInput> input(new FileRecordInput(FLAGS_input));
   NodeConfusionStats confusion_stats;
-  ForeachInput(input.get(), [&confusion_stats](const Json::Value& query, const Json::Value& assign) {
+  ForeachInput(input.get(), [&confusion_stats](const Query& query) {
     GraphInference inference;
-    inference.AddQueryToModel(query, assign);
+    inference.AddQueryToModel(query);
     std::unique_ptr<Nice2Query> q(inference.CreateQuery());
-    q->FromJSON(query);
+    q->FromFeaturesQueryProto(query.features());
     std::unique_ptr<Nice2Assignment> a(inference.CreateAssignment(q.get()));
-    a->FromJSON(assign);
+    a->FromAssignmentsProto(query.assignments());
 
     inference.PrintConfusionStatistics(q.get(), a.get(), &confusion_stats);
     LOG(INFO) << "Confusion statistics. non-confusable nodes:" << confusion_stats.num_non_confusable_nodes
         << ", confusable nodes:" << confusion_stats.num_confusable_nodes
         << ". Num expected confusion errors:" << confusion_stats.num_expected_confusions;
-  });
+  }, adapter);
 }
 
-void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
-    PrecisionStats* total_stats) {
+void Evaluate(RecordInput* evaluation_data, GraphInference* inference, PrecisionStats* total_stats,
+    JsonAdapter &adapter) {
   int64 start_time = GetCurrentTimeMicros();
   PrecisionStats stats;
-  ParallelForeachInput(evaluation_data, [&inference,&stats](const Json::Value& query, const Json::Value& assign) {
+  ParallelForeachInput(evaluation_data, [&inference,&stats](const Query& query) {
     std::unique_ptr<Nice2Query> q(inference->CreateQuery());
-    q->FromJSON(query);
+    q->FromFeaturesQueryProto(query.features());
     std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-    a->FromJSON(assign);
+    a->FromAssignmentsProto(query.assignments());
     std::unique_ptr<Nice2Assignment> refa(inference->CreateAssignment(q.get()));
-    refa->FromJSON(assign);
+    refa->FromAssignmentsProto(query.assignments());
 
     a->ClearInferredAssignment();
     inference->MapInference(q.get(), a.get());
     a->CompareAssignments(refa.get(), &stats);
-  });
+  }, adapter);
   int64 end_time = GetCurrentTimeMicros();
   LOG(INFO) << "Evaluation pass took " << (end_time - start_time) / 1000 << "ms.";
 
@@ -310,54 +314,59 @@ int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
+  JsonAdapter adapter;
+
   if (FLAGS_cross_validation_folds > 1) {
     PrecisionStats total_stats;
     for (int fold_id = 0; fold_id < FLAGS_cross_validation_folds; ++fold_id) {
       GraphInference inference;
       std::unique_ptr<RecordInput> training_data(
           new ShuffledCacheInput(new CrossValidationInput(new FileRecordInput(FLAGS_input),
-              fold_id, FLAGS_cross_validation_folds, true)));
+                                                          fold_id, FLAGS_cross_validation_folds, true)));
       std::unique_ptr<RecordInput> validation_data(
           new ShuffledCacheInput(new CrossValidationInput(new FileRecordInput(FLAGS_input),
-              fold_id, FLAGS_cross_validation_folds, false)));
+                                                          fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
-      InitTrain(training_data.get(), &inference);
+      InitTrain(training_data.get(), &inference, adapter);
       if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {
-        TrainPL(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+        TrainPL(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate, adapter);
       } else if (FLAGS_training_method.compare(SSVM_TRAIN_NAME) == 0) {
-        TrainSSVM(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+        TrainSSVM(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate, adapter);
       } else if (FLAGS_training_method.compare(PL_SSVM_TRAIN_NAME) == 0) {
-        TrainPL(training_data.get(), &inference, FLAGS_num_pass_change_training, FLAGS_start_learning_rate);
-        TrainSSVM(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_initial_learning_rate_ssvm);
+        TrainPL(training_data.get(), &inference, FLAGS_num_pass_change_training, FLAGS_start_learning_rate, adapter);
+        TrainSSVM(training_data.get(), &inference, FLAGS_num_training_passes, FLAGS_initial_learning_rate_ssvm,
+                  adapter);
       } else {
         LOG(INFO) << "ERROR: training method name not recognized";
         return 1;
       }
       LOG(INFO) << "Evaluating fold " << fold_id;
-      Evaluate(validation_data.get(), &inference, &total_stats);
+      Evaluate(validation_data.get(), &inference, &total_stats, adapter);
     }
     // Output results of cross-validation (no model is saved in this mode).
     LOG(INFO) << "========================================";
     LOG(INFO) << "Cross-validation done";
-    LOG(INFO) << "Correct " << total_stats.correct_labels << " vs " << total_stats.incorrect_labels << " incorrect labels for the whole dataset";
+    LOG(INFO) << "Correct " << total_stats.correct_labels << " vs " << total_stats.incorrect_labels
+              << " incorrect labels for the whole dataset";
     LOG(INFO) << "Made prediction that were not unknown for " << total_stats.num_known_predictions << " labels";
-    double error_rate = total_stats.incorrect_labels / (static_cast<double>(total_stats.incorrect_labels + total_stats.correct_labels));
+    double error_rate =
+        total_stats.incorrect_labels / (static_cast<double>(total_stats.incorrect_labels + total_stats.correct_labels));
     LOG(INFO) << "Error rate of " << std::fixed << error_rate;
   } else if (FLAGS_print_confusion) {
-    PrintConfusion();
+    PrintConfusion(adapter);
   } else {
     LOG(INFO) << "Running structured training...";
     // Structured training.
     GraphInference inference;
     std::unique_ptr<RecordInput> input(new ShuffledCacheInput(new FileRecordInput(FLAGS_input)));
-    InitTrain(input.get(), &inference);
+    InitTrain(input.get(), &inference, adapter);
     if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {
-      TrainPL(input.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+      TrainPL(input.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate, adapter);
     } else if (FLAGS_training_method.compare(SSVM_TRAIN_NAME) == 0) {
-      TrainSSVM(input.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate);
+      TrainSSVM(input.get(), &inference, FLAGS_num_training_passes, FLAGS_start_learning_rate, adapter);
     } else if (FLAGS_training_method.compare(PL_SSVM_TRAIN_NAME) == 0) {
-      TrainPL(input.get(), &inference, FLAGS_num_pass_change_training, FLAGS_start_learning_rate);
-      TrainSSVM(input.get(), &inference, FLAGS_num_training_passes, FLAGS_initial_learning_rate_ssvm);
+      TrainPL(input.get(), &inference, FLAGS_num_pass_change_training, FLAGS_start_learning_rate, adapter);
+      TrainSSVM(input.get(), &inference, FLAGS_num_training_passes, FLAGS_initial_learning_rate_ssvm, adapter);
     } else {
       LOG(INFO) << "ERROR: training method name not recognized";
       return 1;
@@ -368,3 +377,4 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+

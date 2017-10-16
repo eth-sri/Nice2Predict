@@ -27,10 +27,11 @@
 
 #include "src/base/base.h"
 #include "src/base/readerutil.h"
-#include "src/base/stringprintf.h"
-#include "src/base/stringset.h"
 #include "src/inference/graph_inference.h"
+#include "src/server/json_adapter.h"
+#include "src/base/stringprintf.h"
 
+using nice2protos::Query;
 
 DEFINE_string(model, "model", "File prefix for model to evaluate.");
 DEFINE_int32(num_threads, 8, "Number of threads to use.");
@@ -40,8 +41,9 @@ DEFINE_string(input, "testdata", "Input file with JSON objects used for evaluati
 DEFINE_bool(debug_stats, false, "If specifies, only outputs debug stats of a trained model.");
 DEFINE_string(output_errors, "", "If set, will output the label errors done by the system.");
 
-typedef std::function<void(const Json::Value&, const Json::Value&)> InputProcessor;
-void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc) {
+typedef std::function<void(const Query& query)> InputProcessor;
+
+void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc, JsonAdapter &adapter) {
   std::string line;
   Json::Reader jsonreader;
   while (!reader->ReachedEnd()) {
@@ -52,17 +54,16 @@ void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc) {
     if (!jsonreader.parse(line, v, false)) {
       LOG(ERROR) << "Could not parse input: " << jsonreader.getFormattedErrorMessages() << "\n" << line;
     } else {
-      proc(v["query"], v["assign"]);
+      proc(adapter.JsonToQuery(v));
     }
   }
 }
-
-void ParallelForeachInput(RecordInput* input, InputProcessor proc) {
+void ParallelForeachInput(RecordInput* input, InputProcessor proc, JsonAdapter &adapter) {
   // Do parallel ForEach
   std::unique_ptr<InputRecordReader> reader(input->CreateReader());
   std::vector<std::thread> threads;
   for (int i = 0; i < FLAGS_num_threads; ++i) {
-    threads.push_back(std::thread(std::bind(&ProcessLinesParallel, reader.get(), proc)));
+    threads.push_back(std::thread(std::bind(&ProcessLinesParallel, reader.get(), proc, adapter)));
   }
   for (auto& thread : threads){
     thread.join();
@@ -113,24 +114,24 @@ void OutputLabelErrorStats(const SingleLabelErrorStats* stats) {
 }
 
 void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
-    PrecisionStats* total_stats, SingleLabelErrorStats* error_stats) {
+    PrecisionStats* total_stats, SingleLabelErrorStats* error_stats, JsonAdapter &adapter) {
   LOG(INFO) << "Evaluating...";
   int64 start_time = GetCurrentTimeMicros();
   PrecisionStats stats;
-  ParallelForeachInput(evaluation_data, [&inference,&stats,error_stats](const Json::Value& query, const Json::Value& assign) {
+  ParallelForeachInput(evaluation_data, [&inference,&stats,error_stats](const Query& query) {
     std::unique_ptr<Nice2Query> q(inference->CreateQuery());
-    q->FromJSON(query);
+    q->FromFeaturesQueryProto(query.features());
     std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-    a->FromJSON(assign);
+    a->FromAssignmentsProto(query.assignments());
     std::unique_ptr<Nice2Assignment> refa(inference->CreateAssignment(q.get()));
-    refa->FromJSON(assign);
+    refa->FromAssignmentsProto(query.assignments());
 
     a->ClearInferredAssignment();
     inference->MapInference(q.get(), a.get());
     a->CompareAssignments(refa.get(), &stats);
     if (error_stats != nullptr)
       a->CompareAssignmentErrors(refa.get(), error_stats);
-  });
+  }, adapter);
   int64 end_time = GetCurrentTimeMicros();
   LOG(INFO) << "Evaluation pass took " << (end_time - start_time) / 1000 << "ms.";
 
@@ -147,6 +148,8 @@ int main(int argc, char** argv) {
   google::InstallFailureSignalHandler();
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
+
+  JsonAdapter adapter;
 
   if (FLAGS_debug_stats) {
     GraphInference inference;
@@ -165,7 +168,7 @@ int main(int argc, char** argv) {
     }
     inference.LoadModel(FLAGS_model);
     PrecisionStats total_stats;
-    Evaluate(input.get(), &inference, &total_stats, error_stats.get());
+    Evaluate(input.get(), &inference, &total_stats, error_stats.get(), adapter);
     OutputLabelErrorStats(error_stats.get());
     // No need to print total_stats. Evaluate() already prints info.
   }
