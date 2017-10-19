@@ -115,8 +115,8 @@ public:
       if (feature.has_binary_relation()) {
         // A factor connecting two facts (an arc).
         Arc a;
-        a.node_a = feature.binary_relation().first();
-        a.node_b = feature.binary_relation().second();
+        a.node_a = feature.binary_relation().first_node();
+        a.node_b = feature.binary_relation().second_node();
         max_index = std::max({max_index, a.node_a, a.node_b});
         a.type = label_set_.ss()->findString(feature.binary_relation().relation().c_str());
         if (a.type < 0) continue;
@@ -124,10 +124,9 @@ public:
       }
       else if (feature.has_constraint()) {
         // A scope that lists names that cannot be assigned to the same value.
-        CHECK(feature.constraint().constraint() == "!=");
         std::vector<int> scope_vars;
-        scope_vars.reserve(feature.constraint().indices_size());
-        for (const auto& item : feature.constraint().indices()) {
+        scope_vars.reserve(feature.constraint().nodes_size());
+        for (const auto& item : feature.constraint().nodes()) {
           scope_vars.push_back(item);
         }
         std::sort(scope_vars.begin(), scope_vars.end());
@@ -137,7 +136,7 @@ public:
       }
       if (FLAGS_use_factors && feature.has_factor_variables()) {
         Factor factor_vars;
-        for (const auto& item : feature.factor_variables().indices()) {
+        for (const auto& item : feature.factor_variables().nodes()) {
           factor_vars.insert(item);
           max_index = std::max(max_index, item);
         }
@@ -255,15 +254,15 @@ public:
     penalties_.assign(assignments_.size(), LabelPenalty());
   }
 
-  virtual void FromAssignmentsProto(const Assignments &assignments) override {
+  virtual void FromNodeAssignmentsProto(const NodeAssignments &assignments) override {
     size_t variables_count = query_->arcs_adjacent_to_node_.size();
     assignments_.assign(variables_count, Assignment());
     for (const auto& assignment : assignments) {
       Assignment aset;
       aset.label = label_set_->AddLabelName(assignment.label().c_str());
       aset.must_infer = !assignment.given();
-      if (assignment.index() < variables_count) {
-        assignments_[assignment.index()] = aset;
+      if (assignment.node_index() < variables_count) {
+        assignments_[assignment.node_index()] = aset;
       }
     }
     ClearPenalty();
@@ -273,8 +272,8 @@ public:
     for (size_t i = 0; i < assignments_.size(); ++i) {
       if (assignments_[i].label < 0) continue;
 
-      auto *assignment = response->add_assignments();
-      assignment->set_index(i);
+      auto *assignment = response->add_node_assignments();
+      assignment->set_node_index(i);
       assignment->set_given(!assignments_[i].must_infer);
       assignment->set_label(label_set_->GetLabelName(assignments_[i].label));
     }
@@ -315,16 +314,16 @@ public:
       if (assignments_[i].must_infer) {
         GetCandidatesForNode(inference, i, &scored_candidates);
         auto *distribution = response->add_candidates_distributions();
-        distribution->set_index(i);
+        distribution->set_node(i);
         // Take only the top-n candidates to the response
         for (size_t j = 0; j < scored_candidates.size() && j < (size_t)((unsigned)n) ; j++) {
           auto *candidate = distribution->add_candidates();
-          auto *assignment = new nice2protos::Assignment();
+          auto *assignment = new nice2protos::NodeAssignment();
           assignment->set_label(label_set_->GetLabelName(scored_candidates[j].first));
-          assignment->set_index(i);
+          assignment->set_node_index(i);
           assignment->set_given(false);
 
-          candidate->set_allocated_assignment(assignment);
+          candidate->set_allocated_node_assignment(assignment);
           candidate->set_score(scored_candidates[j].second);
         }
       }
@@ -1595,9 +1594,9 @@ void GraphInference::FillGraphProto(
 void GraphInference::AddQueryToModel(const nice2protos::Query &query) {
   std::unordered_map<int, int> values;
   std::set<int> unique_values;
-  for (const auto& a : query.assignments()) {
+  for (const auto& a : query.node_assignments()) {
     int value = strings_.addString(a.label().c_str());
-    values[a.index()] = value;
+    values[a.node_index()] = value;
     unique_values.insert(value);
   }
   for (int value : unique_values) {
@@ -1607,8 +1606,8 @@ void GraphInference::AddQueryToModel(const nice2protos::Query &query) {
   for (const auto& f : query.features()) {
     if (f.has_binary_relation()) {
       GraphFeature feature(
-          FindWithDefault(values, f.binary_relation().first(), -1),
-          FindWithDefault(values, f.binary_relation().second(), -1),
+          FindWithDefault(values, f.binary_relation().first_node(), -1),
+          FindWithDefault(values, f.binary_relation().second_node(), -1),
           strings_.addString(f.binary_relation().relation().c_str()));
       if (feature.a_ != -1 && feature.b_ != -1) {
         features_[feature].nonAtomicAdd(1);
@@ -1619,7 +1618,7 @@ void GraphInference::AddQueryToModel(const nice2protos::Query &query) {
       const auto& fv = f.factor_variables();
       Factor factor_vars;
       uint64 hash = 0;
-      for (const auto& item : fv.indices()) {
+      for (const auto& item : fv.nodes()) {
         int value = FindWithDefault(values, item, -1);
         if (value == -1) {
           factor_vars.clear();

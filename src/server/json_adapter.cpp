@@ -71,16 +71,15 @@ Query JsonAdapter::JsonToQuery(const Json::Value &json_query) {
       // A factor connecting two facts (an arc).
       auto *feature = query.add_features();
       auto *bin_relation = new Feature::BinaryRelation;
-      bin_relation->set_first(numberer_.ValueToNumber(arc["a"]));
-      bin_relation->set_second(numberer_.ValueToNumber(arc["b"]));
+      bin_relation->set_first_node(numberer_.ValueToNumber(arc["a"]));
+      bin_relation->set_second_node(numberer_.ValueToNumber(arc["b"]));
       bin_relation->set_relation(arc["f2"].asCString());
       feature->set_allocated_binary_relation(bin_relation);
     }
     if (arc.isMember("cn")) {
       // A scope that lists names that cannot be assigned to the same value.
       auto *feature = query.add_features();
-      auto *constraint = new Feature::Constraint;
-      constraint->set_constraint(arc["cn"].asCString());
+      auto *constraint = new Feature::InequalityConstraint;
       const Json::Value& v = arc["n"];
       if (v.isArray()) {
         std::vector<int> scope_vars;
@@ -91,7 +90,7 @@ Query JsonAdapter::JsonToQuery(const Json::Value &json_query) {
         std::sort(scope_vars.begin(), scope_vars.end());
         scope_vars.erase(std::unique(scope_vars.begin(), scope_vars.end()), scope_vars.end());
         for (const auto &scope_var : scope_vars) {
-          constraint->add_indices(scope_var);
+          constraint->add_nodes(scope_var);
         }
       }
       feature->set_allocated_constraint(constraint);
@@ -102,7 +101,7 @@ Query JsonAdapter::JsonToQuery(const Json::Value &json_query) {
         auto *feature = query.add_features();
         auto *factor_var = new Feature::FactorVariable;
         for (const Json::Value &item : v) {
-          factor_var->add_indices(numberer_.ValueToNumber(item));
+          factor_var->add_nodes(numberer_.ValueToNumber(item));
         }
         feature->set_allocated_factor_variables(factor_var);
       }
@@ -110,7 +109,7 @@ Query JsonAdapter::JsonToQuery(const Json::Value &json_query) {
   }
 
   for (const Json::Value& a : json_query["assign"]) {
-    auto *assignment = query.add_assignments();
+    auto *assignment = query.add_node_assignments();
     if (a.isMember("inf")) {
       assignment->set_label(a["inf"].asCString());
       assignment->set_given(false);
@@ -121,7 +120,7 @@ Query JsonAdapter::JsonToQuery(const Json::Value &json_query) {
     }
     int number = numberer_.ValueToNumberWithDefault(a.get("v", Json::Value::null), -1);
     if (number != -1) {
-      assignment->set_index(static_cast<uint32_t>(number));
+      assignment->set_node_index(static_cast<uint32_t>(number));
     }
   }
   return query;
@@ -129,9 +128,9 @@ Query JsonAdapter::JsonToQuery(const Json::Value &json_query) {
 
 Json::Value JsonAdapter::InferResponseToJson(const InferResponse &response) {
   Json::Value assignments = Json::Value(Json::arrayValue);
-  for (const auto &assignment : response.assignments()) {
+  for (const auto &assignment : response.node_assignments()) {
     Json::Value obj(Json::objectValue);
-    obj["v"] = numberer_.NumberToValue(assignment.index());
+    obj["v"] = numberer_.NumberToValue(assignment.node_index());
     if (!assignment.given()) {
       obj["inf"] = Json::Value(assignment.label());
     } else {
@@ -154,11 +153,11 @@ Json::Value JsonAdapter::NBestResponseToJson(const NBestResponse &response) {
   Json::Value assignments = Json::Value(Json::arrayValue);
   for (const auto &distribution : response.candidates_distributions()) {
     Json::Value node_results(Json::objectValue);
-    node_results["v"] = numberer_.NumberToValue(distribution.index());
+    node_results["v"] = numberer_.NumberToValue(distribution.node());
     Json::Value node_candidate(Json::arrayValue);
     for (const auto &candidate : distribution.candidates()) {
       Json::Value obj(Json::objectValue);
-      obj["label"] = candidate.assignment().label();
+      obj["label"] = candidate.node_assignment().label();
       obj["score"] = candidate.score();
       node_candidate.append(obj);
     }

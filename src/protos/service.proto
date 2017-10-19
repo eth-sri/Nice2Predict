@@ -25,19 +25,17 @@ message Feature {
   // BinaryRelation defines a binary relation between a pair of assignments.
   message BinaryRelation {
     // Assignment indices.
-    int32 first = 1;
-    int32 second = 2;
+    int32 first_node = 1;
+    int32 second_node = 2;
     // Either AST tree or functional relation betweeen a pair assignments
     // encoded in a string format.
-    string Relation = 3;
+    string relation = 3;
   }
   // Constraint defines a scoped-infered constraint over a group of
   // assignments.
-  message Constraint {
-    // Assignment type (e.g. "!=" is used for scope constraints)
-    string constraint = 1;
+  message InequalityConstraint {
     // Indices of constrainted assignments.
-    repeated int32 indices = 2;
+    repeated int32 nodes = 1;
   }
 
   // Factor variable specify a group of assignments to be considered
@@ -45,12 +43,12 @@ message Feature {
   // Factor variables should be enabled by a corresponding server flag to make
   // this type of feature available.
   message FactorVariable {
-    repeated int32 indices = 1;
+    repeated int32 nodes = 1;
   }
   // A Feature is either a BinaryRelation, a Constraint or a FactorVariable.
   oneof feature {
     BinaryRelation binary_relation = 1;
-    Constraint constraint = 2;
+    InequalityConstraint constraint = 2;
     FactorVariable factor_variables = 3;
   }
 }
@@ -58,19 +56,19 @@ message Feature {
 // An Assignment defines a label corresponding to a specifix index used
 // in features enumeration. The label might be either given or unknown
 // (i.e. supposed to be infered)
-message Assignment {
+message NodeAssignment {
   // The name of the property.
   string label = 1;
   // Whether the name is given or should be inferred.
   bool given = 2;
-  uint32 index = 3;
+  uint32 node_index = 3;
 }
 
 // Message containing all the information that is necessary to perform
 // MAP inference and obtain labels that are not given.
 message Query {
   repeated Feature features = 1;
-  repeated Assignment assignments = 2;
+  repeated NodeAssignment node_assignments = 2;
 }
 
 message NBestQuery {
@@ -90,7 +88,7 @@ message ShowGraphQuery {
 // InferResponse consists of assignments that were marked as to be inferred in
 // the InferQuery.
 message InferResponse {
-  repeated Assignment assignments = 1;
+  repeated NodeAssignment node_assignments = 1;
 }
 
 message NBestResponse {
@@ -98,11 +96,11 @@ message NBestResponse {
   // with their scores.
   message AssignmentCandidateDistribution {
     message AssignmentCandidate {
-      Assignment assignment = 1;
+      NodeAssignment node_assignment = 1;
       double score = 2;
     }
     repeated AssignmentCandidate candidates = 1;
-    uint32 index = 2;
+    uint32 node = 2;
   }
   repeated AssignmentCandidateDistribution candidates_distributions = 1;
 }

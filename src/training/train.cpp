@@ -164,7 +164,7 @@ void TestInference(RecordInput* input, GraphInference* inference, JsonAdapter &a
     Nice2Query* q = inference->CreateQuery();
     q->FromFeaturesQueryProto(query.features());
     Nice2Assignment* a = inference->CreateAssignment(q);
-    a->FromAssignmentsProto(query.assignments());
+    a->FromNodeAssignmentsProto(query.node_assignments());
     double start_score = inference->GetAssignmentScore(a);
     inference->MapInference(q, a);
     score_gain += inference->GetAssignmentScore(a) - start_score;
@@ -200,7 +200,7 @@ void TrainPL(RecordInput* input, GraphInference* inference, int num_training_pas
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromFeaturesQueryProto(query.features());
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-      a->FromAssignmentsProto(query.assignments());
+      a->FromNodeAssignmentsProto(query.node_assignments());
       inference->PLLearn(q.get(), a.get(), learning_rate);
     }, adapter);
 
@@ -239,7 +239,7 @@ void TrainSSVM(RecordInput* input, GraphInference* inference, int num_training_p
       std::unique_ptr<Nice2Query> q(inference->CreateQuery());
       q->FromFeaturesQueryProto(query.features());
       std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-      a->FromAssignmentsProto(query.assignments());
+      a->FromNodeAssignmentsProto(query.node_assignments());
       inference->SSVMLearn(q.get(), a.get(), learning_rate, &stats);
     }, adapter);
 
@@ -272,7 +272,7 @@ void PrintConfusion(JsonAdapter &adapter) {
     std::unique_ptr<Nice2Query> q(inference.CreateQuery());
     q->FromFeaturesQueryProto(query.features());
     std::unique_ptr<Nice2Assignment> a(inference.CreateAssignment(q.get()));
-    a->FromAssignmentsProto(query.assignments());
+    a->FromNodeAssignmentsProto(query.node_assignments());
 
     inference.PrintConfusionStatistics(q.get(), a.get(), &confusion_stats);
     LOG(INFO) << "Confusion statistics. non-confusable nodes:" << confusion_stats.num_non_confusable_nodes
@@ -289,9 +289,9 @@ void Evaluate(RecordInput* evaluation_data, GraphInference* inference, Precision
     std::unique_ptr<Nice2Query> q(inference->CreateQuery());
     q->FromFeaturesQueryProto(query.features());
     std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-    a->FromAssignmentsProto(query.assignments());
+    a->FromNodeAssignmentsProto(query.node_assignments());
     std::unique_ptr<Nice2Assignment> refa(inference->CreateAssignment(q.get()));
-    refa->FromAssignmentsProto(query.assignments());
+    refa->FromNodeAssignmentsProto(query.node_assignments());
 
     a->ClearInferredAssignment();
     inference->MapInference(q.get(), a.get());

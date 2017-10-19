@@ -122,9 +122,9 @@ void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
     std::unique_ptr<Nice2Query> q(inference->CreateQuery());
     q->FromFeaturesQueryProto(query.features());
     std::unique_ptr<Nice2Assignment> a(inference->CreateAssignment(q.get()));
-    a->FromAssignmentsProto(query.assignments());
+    a->FromNodeAssignmentsProto(query.node_assignments());
     std::unique_ptr<Nice2Assignment> refa(inference->CreateAssignment(q.get()));
-    refa->FromAssignmentsProto(query.assignments());
+    refa->FromNodeAssignmentsProto(query.node_assignments());
 
     a->ClearInferredAssignment();
     inference->MapInference(q.get(), a.get());

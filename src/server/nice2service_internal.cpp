@@ -33,7 +33,7 @@ InferResponse Nice2ServiceInternal::Infer(const Query &request) {
   std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
   query->FromFeaturesQueryProto(request.features());
   std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
-  assignment->FromAssignmentsProto(request.assignments());
+  assignment->FromNodeAssignmentsProto(request.node_assignments());
   inference_.MapInference(query.get(), assignment.get());
   InferResponse response;
   assignment->FillInferResponse(&response);
@@ -44,7 +44,7 @@ nice2protos::NBestResponse Nice2ServiceInternal::NBest(const nice2protos::NBestQ
   std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
   query->FromFeaturesQueryProto(request.query().features());
   std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
-  assignment->FromAssignmentsProto(request.query().assignments());
+  assignment->FromNodeAssignmentsProto(request.query().node_assignments());
   if (request.should_infer()) {
     inference_.MapInference(query.get(), assignment.get());
   }
@@ -57,7 +57,7 @@ nice2protos::ShowGraphResponse Nice2ServiceInternal::ShowGraph(const nice2protos
   std::unique_ptr<Nice2Query> query(inference_.CreateQuery());
   query->FromFeaturesQueryProto(request.query().features());
   std::unique_ptr<Nice2Assignment> assignment(inference_.CreateAssignment(query.get()));
-  assignment->FromAssignmentsProto(request.query().assignments());
+  assignment->FromNodeAssignmentsProto(request.query().node_assignments());
   if (request.should_infer()) {
     inference_.MapInference(query.get(), assignment.get());
   }

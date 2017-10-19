@@ -24,7 +24,7 @@
 #include "src/protos/service.pb.h"
 
 typedef ::google::protobuf::RepeatedPtrField<nice2protos::Feature> FeaturesQuery;
-typedef ::google::protobuf::RepeatedPtrField<nice2protos::Assignment> Assignments;
+typedef ::google::protobuf::RepeatedPtrField<nice2protos::NodeAssignment> NodeAssignments;
 
 // Abstract classes for inference.
 
@@ -70,7 +70,7 @@ public:
   virtual void SetUpEqualityPenalty(double penalty) = 0;
   virtual void ClearPenalty() = 0;
 
-  virtual void FromAssignmentsProto(const Assignments &property) = 0;
+  virtual void FromNodeAssignmentsProto(const NodeAssignments &property) = 0;
   virtual void FillInferResponse(nice2protos::InferResponse* response) const = 0;
 
   virtual void GetNBestCandidates(

@@ -118,7 +118,7 @@ void ComputePrecisionStats(std::vector<std::string> ref_data_samples,
     nice2protos::Query proto_query = adapter.JsonToQuery(ref_data_sample);
     ref_query->FromFeaturesQueryProto(proto_query.features());
     Nice2Assignment* ref_assignment = unit_under_test.CreateAssignment(ref_query);
-    ref_assignment->FromAssignmentsProto(proto_query.assignments());
+    ref_assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
     inferred_assignment->CompareAssignments(ref_assignment, precision_stats);
   }
 }
@@ -142,7 +142,7 @@ TEST(MapInferenceTest, GivesCorrectAssignmentWithPairwiseFeature) {
   nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
   query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromAssignmentsProto(proto_query.assignments());
+  assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
   unit_under_test.MapInference(query, assignment);
 
   const std::string ref_data_sample = "{\"query\":[{\"a\":0,\"b\":3,\"f2\":\"mock\"}]," \
@@ -175,7 +175,7 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTest) {
   nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
   query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromAssignmentsProto(proto_query.assignments());
+  assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -214,7 +214,7 @@ TEST(MapInferenceTest, GivesCorrectPermutationOfFactorFeatureTest) {
   nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
   query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromAssignmentsProto(proto_query.assignments());
+  assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -248,7 +248,7 @@ TEST(MapInferenceTest, GivesCorrectPermutationOfFactorFeatureTestGivenOneVarInf)
   nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
   query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromAssignmentsProto(proto_query.assignments());
+  assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -283,7 +283,7 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenAllInfVars)
   nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
   query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromAssignmentsProto(proto_query.assignments());
+  assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -323,7 +323,7 @@ TEST(MapInferenceTest, GivesOneOfPermutationsOfFactorFeatureTestGivenOneGivVar) 
   nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
   query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromAssignmentsProto(proto_query.assignments());
+  assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
 
   unit_under_test.MapInference(query, assignment);
 
@@ -363,7 +363,7 @@ TEST(MapInferenceTest, GivesCorrectPermutationsOfFactorFeatureTestGivenDuplicate
   nice2protos::Query proto_query = adapter.JsonToQuery(data_sample_value);
   query->FromFeaturesQueryProto(proto_query.features());
   Nice2Assignment* assignment = unit_under_test.CreateAssignment(query);
-  assignment->FromAssignmentsProto(proto_query.assignments());
+  assignment->FromNodeAssignmentsProto(proto_query.node_assignments());
 
   unit_under_test.MapInference(query, assignment);
 
