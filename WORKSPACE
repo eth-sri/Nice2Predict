@@ -10,12 +10,6 @@ cpp_proto_repositories()
 
 #BTW, @org_pubref_rules_protobuf already contains @com_google_googletest
 
-git_repository(
-    name   = "com_github_gflags_gflags",
-    commit = "46f73f88b18aee341538c0dfc22b1710a6abedef",
-    remote = "https://github.com/gflags/gflags.git",
-)
-
 load("//tools/build_defs:externals.bzl",
      "new_patched_http_archive",
 )
@@ -29,11 +23,3 @@ new_patched_http_archive(
   strip_prefix = "sparsehash-sparsehash-2.0.3/",
   patch_file = "//third_party:sparsehash.patch",
 )
-
-new_git_repository(
-    name   = "com_github_glog_glog",
-    build_file = "//third_party:BUILD.glog",
-    remote = "https://github.com/google/glog.git",
-    tag = "v0.3.5",
-)
-

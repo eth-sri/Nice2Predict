@@ -1,0 +1,20 @@
+// Proto file defining Nice2Predict server interface.
+
+syntax = "proto3";
+
+package nice2protos;
+
+import "n2p/protos/interface.proto";
+
+// The following defines Nice2Predict server RPC interface
+service Nice2Service {
+  // Infer query initiates MAP inference of unknown labels based on features
+  // and known assignemnts provided. The response contains best assignments.
+  rpc Infer (Query) returns (InferResponse) {}
+  // NBest query runs the MAP inference if necessary. The response contains N
+  // candidates for each assignment together with their scores.
+  rpc NBest (NBestQuery) returns (NBestResponse) {}
+  // ShowGraph query runs the MAP inference if necessary. The response contains
+  // an inference graph encoded in ShowGraphResponse format.
+  rpc ShowGraph (ShowGraphQuery) returns (ShowGraphResponse) {}
+}

@@ -14,13 +14,6 @@ cc_library(name = "json",
            deps = ["jsoncpp"],
            visibility = ["//visibility:public"])
 
-#cc_inc_library(
-#    name = "json",
-#    hdrs = ["client.h"],
-#    prefix = "json",
-#    deps = [":library_impl"],
-#)
-
 cc_library(name = "jsonrpc",
            srcs = [
                "client.h",
@@ -70,8 +63,7 @@ cc_library(name = "jsonrpc",
                "common_procedure.h",
            ],
            deps = [":jsoncpp"],
-           copts = ["-I/usr/local/include"],
-           linkopts = ["-L/usr/local/lib", "-lcurl", "-lmicrohttpd"],
+           linkopts = ["-lcurl", "-lmicrohttpd"],
            visibility = ["//visibility:public"])
 
 

@@ -14,12 +14,13 @@
    limitations under the License.
  */
 
+#include <glog/logging.h>
+
 #include "gtest/gtest.h"
 #include "json/json.h"
-#include "glog/logging.h"
 
-#include "src/inference/graph_inference.h"
-#include "src/server/json_adapter.h"
+#include "n2p/inference/graph_inference.h"
+#include "n2p/json_server/json_adapter.h"
 
 static const size_t mockFactorsLimit = 0;
 
