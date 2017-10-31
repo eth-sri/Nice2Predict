@@ -12,10 +12,12 @@ We have included an example frontend for JavaScript deminification at http://git
 To compile, first install dependencies
 
 on Ubuntu:
-> sudo apt-get install libmicrohttpd-dev libcurl4-openssl-dev bazel
+> sudo apt-get install libmicrohttpd-dev libcurl4-openssl-dev bazel libgoogle-glog-dev libgflags-dev
 
 on Mac:
-> brew install libmicrohttpd bazel
+> brew tap caskroom/versions
+> brew cask install java8
+> brew install libmicrohttpd bazel glog gflags
 
 on Windows follow any installation instructions and install libmicrohttpd, curl and bazel.
 
