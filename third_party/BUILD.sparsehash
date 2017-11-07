@@ -1,0 +1,12 @@
+# This file is copied from
+# https://github.com/livegrep/livegrep/blob/master/third_party/BUILD.sparsehash
+
+cc_library(
+  name = "sparsehash",
+  includes = ["src"],
+  hdrs = glob([
+    "src/google/**/*",
+    "src/sparsehash/**/*"
+  ]),
+  visibility = ["//visibility:public"],
+)

@@ -1,0 +1,118 @@
+// Proto file defining Nice2Predict server interface.
+
+syntax = "proto3";
+
+package nice2protos;
+
+// Feature describes a single feature extracted from a source program.
+// Features specify relations between assignments that are reffered by indices.
+// Indices are supposed to cover a full range from 0 to the number
+// of assignments.
+message Feature {
+  // BinaryRelation defines a binary relation between a pair of assignments.
+  message BinaryRelation {
+    // Assignment indices.
+    int32 first_node = 1;
+    int32 second_node = 2;
+    // Either AST tree or functional relation betweeen a pair assignments
+    // encoded in a string format.
+    string relation = 3;
+  }
+  // Constraint defines a scoped-infered constraint over a group of
+  // assignments.
+  message InequalityConstraint {
+    // Indices of constrainted assignments.
+    repeated int32 nodes = 1;
+  }
+
+  // Factor variable specify a group of assignments to be considered
+  // as factor variables.
+  // Factor variables should be enabled by a corresponding server flag to make
+  // this type of feature available.
+  message FactorVariable {
+    repeated int32 nodes = 1;
+  }
+  // A Feature is either a BinaryRelation, a Constraint or a FactorVariable.
+  oneof feature {
+    BinaryRelation binary_relation = 1;
+    InequalityConstraint constraint = 2;
+    FactorVariable factor_variables = 3;
+  }
+}
+
+// An Assignment defines a label corresponding to a specifix index used
+// in features enumeration. The label might be either given or unknown
+// (i.e. supposed to be infered)
+message NodeAssignment {
+  // The name of the property.
+  string label = 1;
+  // Whether the name is given or should be inferred.
+  bool given = 2;
+  uint32 node_index = 3;
+}
+
+// Message containing all the information that is necessary to perform
+// MAP inference and obtain labels that are not given.
+message Query {
+  repeated Feature features = 1;
+  repeated NodeAssignment node_assignments = 2;
+}
+
+message NBestQuery {
+  Query query = 1;
+  // Number of candidates to be returned for each assignemnt.
+  int32 n = 2;
+  // Whether the inference already performed.
+  bool should_infer = 3;
+}
+
+message ShowGraphQuery {
+  Query query = 1;
+  // Whether the inference already performed.
+  bool should_infer = 2;
+}
+
+// InferResponse consists of assignments that were marked as to be inferred in
+// the InferQuery.
+message InferResponse {
+  repeated NodeAssignment node_assignments = 1;
+}
+
+message NBestResponse {
+  // Assignment candidate distribution contains possible assignments together
+  // with their scores.
+  message AssignmentCandidateDistribution {
+    message AssignmentCandidate {
+      NodeAssignment node_assignment = 1;
+      double score = 2;
+    }
+    repeated AssignmentCandidate candidates = 1;
+    uint32 node = 2;
+  }
+  repeated AssignmentCandidateDistribution candidates_distributions = 1;
+}
+
+// ShowGraph repsonse contains a graph in a format below and aimed to be shown.
+message ShowGraphResponse {
+  // The graph contains one node per each assignment.
+  message GraphNode {
+    // The initial assignment id.
+    int32 id = 1;
+    // Either given or inferred label.
+    string label = 2;
+    // Color that represents whether the label has been given or inferred.
+    string color = 3;
+  }
+
+  // A connection between a pair of nodes representing BinaryRelation feature.
+  message GraphEdge {
+    int32 id = 1;
+    string label = 2;
+    // Indices of a pair of nodes.
+    int32 source = 3;
+    int32 target = 4;
+  }
+  // Graph is represented as a lis of nodes and a list of edges.
+  repeated GraphNode nodes = 1;
+  repeated GraphEdge edges = 2;
+}
