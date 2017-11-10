@@ -6,9 +6,9 @@
 
 #include "recordio.h"
 
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/gzip_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include "google/protobuf/io/coded_stream.h"
+#include "google/protobuf/io/gzip_stream.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
 
 #include "glog/logging.h"
 #include "util/zstream/zstream.h"
@@ -77,7 +77,10 @@ bool RecordReader::ReadMayNotParse(google::protobuf::MessageLite* message, bool*
   *parsed = true;
   google::protobuf::io::CodedInputStream in(in_stream_.get());
   unsigned int size;
-  CHECK(in.ReadVarint32(&size));
+  if (!in.ReadVarint32(&size)) {
+    *parsed = false;
+    return false;
+  }
   if (size == static_cast<unsigned int>(-1)) return false;
   CHECK_GE(static_cast<int>(size), 0);  // No integer overflow.
 

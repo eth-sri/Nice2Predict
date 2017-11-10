@@ -6,7 +6,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//base",
         "//util/zstream",
         "@com_google_protobuf//:protobuf",
     ],
@@ -20,7 +19,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//base",
         "//util/zstream",
         "@com_google_protobuf//:protobuf",
     ],

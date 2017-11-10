@@ -43,7 +43,7 @@ DEFINE_string(output_errors, "", "If set, will output the label errors done by t
 
 typedef std::function<void(const Query& query)> InputProcessor;
 
-void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc, JsonAdapter &adapter) {
+void ProcessLinesParallel(InputRecordReader<std::string>* reader, InputProcessor proc, JsonAdapter &adapter) {
   std::string line;
   Json::Reader jsonreader;
   while (!reader->ReachedEnd()) {
@@ -58,9 +58,9 @@ void ProcessLinesParallel(InputRecordReader* reader, InputProcessor proc, JsonAd
     }
   }
 }
-void ParallelForeachInput(RecordInput* input, InputProcessor proc, JsonAdapter &adapter) {
+void ParallelForeachInput(RecordInput<std::string>* input, InputProcessor proc, JsonAdapter &adapter) {
   // Do parallel ForEach
-  std::unique_ptr<InputRecordReader> reader(input->CreateReader());
+  std::unique_ptr<InputRecordReader<std::string>> reader(input->CreateReader());
   std::vector<std::thread> threads;
   for (int i = 0; i < FLAGS_num_threads; ++i) {
     threads.push_back(std::thread(std::bind(&ProcessLinesParallel, reader.get(), proc, adapter)));
@@ -113,7 +113,7 @@ void OutputLabelErrorStats(const SingleLabelErrorStats* stats) {
   LOG(INFO) << "Error stats written.";
 }
 
-void Evaluate(RecordInput* evaluation_data, GraphInference* inference,
+void Evaluate(RecordInput<std::string>* evaluation_data, GraphInference* inference,
     PrecisionStats* total_stats, SingleLabelErrorStats* error_stats, JsonAdapter &adapter) {
   LOG(INFO) << "Evaluating...";
   int64 start_time = GetCurrentTimeMicros();
@@ -159,10 +159,10 @@ int main(int argc, char** argv) {
     std::unique_ptr<SingleLabelErrorStats> error_stats(CreateLabelErrorStats());
 
     GraphInference inference;
-    std::unique_ptr<RecordInput> input;
+    std::unique_ptr<RecordInput<std::string>> input;
 
     if (FLAGS_single_input.empty()) {
-      input.reset(new FileRecordInput(FLAGS_input));
+      input.reset(new FileRecordInput<std::string>(FLAGS_input));
     } else {
       input.reset(new FileListRecordInput(std::vector<std::string>({FLAGS_single_input})));
     }
