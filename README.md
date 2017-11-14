@@ -45,23 +45,25 @@ By default, train gets input programs (converted to JSON for example with Unugli
 
 If you wish to train the model using pseudolikelihood use the following parameters:
 
-> bazel run //src/training/train -training_method pl
+> bazel run //src/training/train -- -training_method pl -input path/to/input/file --logtostderr
 
 you can control the pseudolikelihood specific beam size with the `-beam_size` parameter which is different from the beam size used during MAP Inference.
+
+`//src/training/train` expects data to be in protobuf recordIO format. If you want to use JSON input - use `//src/training/train_json` instead.
 
 ### Factors
 
 by default the usage of factor features in Nice2Predict is enabled, however if you wish to disable it you can launch the training with the following command:
 
-> bazel run //src/training/train -use_factors=false
+> bazel run //src/training/train -- -use_factors=false -input path/to/input/file --logtostderr
 
 ## Predicting properties
 
 To predict properties for new programs, start a server after a model was trained:
 
-> bazel run //src/server/nice2serverproto --logtostderr
+> bazel run //src/server/nice2serverproto -- --logtostderr
 
 To run old JsonRPC API:
-> bazel run //src/server/nice2server --logtostderr
+> bazel run //src/server/nice2server -- --logtostderr
 
 One can debug and observe deobfuscation from the viewer available in the viewer/viewer.html .
