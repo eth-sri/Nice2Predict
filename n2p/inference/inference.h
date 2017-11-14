@@ -21,7 +21,7 @@
 #include <string>
 #include <map>
 
-#include "n2p/protos/service.pb.h"
+#include "n2p/protos/interface.pb.h"
 
 typedef ::google::protobuf::RepeatedPtrField<nice2protos::Feature> FeaturesQuery;
 typedef ::google::protobuf::RepeatedPtrField<nice2protos::NodeAssignment> NodeAssignments;

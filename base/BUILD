@@ -22,6 +22,7 @@ cc_library(name = "base",
                    "maputil.h",
                    "treeprinter.h",
                   ],
+           deps = ["//util/recordio"],
            linkopts = ["-lglog"],
            visibility = ["//visibility:public"],
 )

@@ -28,18 +28,63 @@
 #include <glog/logging.h>
 
 #include "fileutil.h"
+#include "util/recordio/recordio.h"
 
 // Readers
 
+template <class RecordType>
 class InputRecordReader {
 public:
   virtual ~InputRecordReader() {}
   virtual bool ReachedEnd() = 0;
-  virtual void Read(std::string* s) = 0;
+  virtual bool Read(RecordType* s) = 0;
 };
 
-class FileInputRecordReader : public InputRecordReader {
-public:
+template <class ProtoClass>
+class FileInputRecordReader : public InputRecordReader<ProtoClass> {
+ public:
+  explicit FileInputRecordReader(const std::string& filename) : reader(filename), has_prefetched(false) {
+  }
+  virtual ~FileInputRecordReader() override {
+    reader.Close();
+  }
+
+  virtual bool Read(ProtoClass* proto) override {
+    std::lock_guard<std::mutex> lock(reader_mutex);
+    if (!has_prefetched && !PrefetchProto()) {
+      proto->Clear();
+      return false;
+    }
+    *proto = std::move(prefetched_proto);
+    has_prefetched = false;
+    return true;
+  }
+
+  virtual bool ReachedEnd() override {
+    std::lock_guard<std::mutex> lock(reader_mutex);
+    return !has_prefetched && !PrefetchProto();
+  }
+
+ private:
+
+  bool PrefetchProto() {
+    if (has_prefetched) {
+      return true;
+    }
+    reader.ReadMayNotParse(&prefetched_proto, &has_prefetched);
+    return has_prefetched;
+  }
+
+  RecordReader reader;
+  ProtoClass prefetched_proto;
+  bool has_prefetched;
+  std::mutex reader_mutex;
+};
+
+
+template <>
+class FileInputRecordReader<std::string> : public InputRecordReader<std::string> {
+ public:
   explicit FileInputRecordReader(const std::string& filename) : file(filename) {
     CHECK(exists(filename)) << "File '" << filename << "' does not exist!";
   }
@@ -49,47 +94,51 @@ public:
   std::ifstream file;
   std::mutex filemutex;
 
-  virtual void Read(std::string* s) override {
+  virtual bool Read(std::string* s) override {
     std::lock_guard<std::mutex> lock(filemutex);
     s->clear();
     while (s->empty()) {
       if (file.eof() || !file.good()) {
-        return;  // Keep empty.
+        return false;  // Keep empty.
       }
       std::getline(file, *s);  // Read until we get a non-empty line.
     }
+    return true;
   }
 
   virtual bool ReachedEnd() override {
     std::lock_guard<std::mutex> lock(filemutex);
     return file.eof();
   }
-private:
+ private:
   inline bool exists (const std::string& name) {
     return ( access( name.c_str(), F_OK ) != -1 );
   }
 };
 
-class FileListRecordReader : public InputRecordReader {
+class FileListRecordReader : public InputRecordReader<std::string> {
 public:
   explicit FileListRecordReader(const std::vector<std::string>& filelist) : filelist_(filelist), file_index_(0) {
   }
   virtual ~FileListRecordReader() override {
   }
 
-  virtual void Read(std::string* s) override {
+  virtual bool Read(std::string* s) override {
     s->clear();
 
     std::string filename;
     {
       std::lock_guard<std::mutex> lock(file_index_mutex_);
-      if (file_index_ >= filelist_.size()) return;
+      if (file_index_ >= filelist_.size()) {
+        return false;
+      }
       filename = filelist_[file_index_];
       file_index_++;
     }
 
     CHECK(exists(filename)) << "File '" << filename << "' does not exist!";
     ReadFileToStringOrDie(filename.c_str(), s);
+    return true;
   }
 
   virtual bool ReachedEnd() override {
@@ -107,23 +156,25 @@ private:
   std::mutex file_index_mutex_;
 };
 
-class CachingInputRecordReader : public InputRecordReader {
+template <class T>
+class CachingInputRecordReader : public InputRecordReader<T> {
 public:
   // The class takes ownership of underlying_reader.
   explicit CachingInputRecordReader(
-      InputRecordReader* underlying_reader,
-      std::vector<std::string>* recording) : underlying_reader_(underlying_reader), recording_(recording) {
+      InputRecordReader<T>* underlying_reader,
+      std::vector<T>* recording) : underlying_reader_(underlying_reader), recording_(recording) {
   }
   virtual ~CachingInputRecordReader() override {
     delete underlying_reader_;
   }
 
-  virtual void Read(std::string* s) override {
-    underlying_reader_->Read(s);
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!s->empty()) {
-      recording_->push_back(*s);
+  virtual bool Read(T* s) override {
+    if (!underlying_reader_->Read(s)) {
+      return false;
     }
+    std::lock_guard<std::mutex> lock(mutex_);
+    recording_->push_back(*s);
+    return true;
   }
 
   virtual bool ReachedEnd() override {
@@ -131,26 +182,27 @@ public:
   }
 
 private:
-  InputRecordReader* underlying_reader_;
-  std::vector<std::string>* recording_;
+  InputRecordReader<T>* underlying_reader_;
+  std::vector<T>* recording_;
   std::mutex mutex_;
 };
 
-class RecordedRecordReader : public InputRecordReader {
+template <class T>
+class RecordedRecordReader : public InputRecordReader<T> {
 public:
-  explicit RecordedRecordReader(const std::vector<std::string>* recording) : recording_(recording), pos_(0) {
+  explicit RecordedRecordReader(const std::vector<T>* recording) : recording_(recording), pos_(0) {
   }
   virtual ~RecordedRecordReader() {
   }
 
-  virtual void Read(std::string* s) override {
+  virtual bool Read(T* s) override {
     std::lock_guard<std::mutex> lock(mutex_);
     if (pos_ >= recording_->size()) {
-      s->clear();
-    } else {
-      (*s) = (*recording_)[pos_];
-      ++pos_;
+      return false;
     }
+    (*s) = (*recording_)[pos_];
+    ++pos_;
+    return true;
   }
 
   virtual bool ReachedEnd() override {
@@ -159,29 +211,30 @@ public:
   }
 
 private:
-  const std::vector<std::string>* recording_;
+  const std::vector<T>* recording_;
   size_t pos_;
   std::mutex mutex_;
 };
 
 // Factories
 
+template <class T>
 class RecordInput {
 public:
   virtual ~RecordInput() {}
-  virtual InputRecordReader* CreateReader() = 0;
+  virtual InputRecordReader<T>* CreateReader() = 0;
 };
 
-// Input where each record is a line in a file.
-class FileRecordInput : public RecordInput {
+template <class T>
+class FileRecordInput : public RecordInput<T> {
 public:
   explicit FileRecordInput(const std::string& filename) : filename_(filename) {
   }
   virtual ~FileRecordInput() override {
   }
 
-  virtual InputRecordReader* CreateReader() override {
-    return new FileInputRecordReader(filename_);
+  virtual InputRecordReader<T>* CreateReader() override {
+    return new FileInputRecordReader<T>(filename_);
   }
 
 private:
@@ -189,14 +242,14 @@ private:
 };
 
 // Input where each records is the contents of a file.
-class FileListRecordInput : public RecordInput {
+class FileListRecordInput : public RecordInput<std::string> {
 public:
   explicit FileListRecordInput(std::vector<std::string>&& files) : files_(files) {
   }
   virtual ~FileListRecordInput() override {
   }
 
-  virtual InputRecordReader* CreateReader() override {
+  virtual InputRecordReader<std::string>* CreateReader() override {
     return new FileListRecordReader(files_);
   }
 
@@ -210,38 +263,40 @@ private:
  * Concurrency: Once a reader is created, multiple threads can read from it. However, only one
  * reader should be created at a time.
  */
-class ShuffledCacheInput : public RecordInput {
+template <class T>
+class ShuffledCacheInput : public RecordInput<T> {
 public:
   // The class takes ownership of underlying_input.
-  explicit ShuffledCacheInput(RecordInput* underlying_input) : underlying_input_(underlying_input), has_recorded_(false) {
+  explicit ShuffledCacheInput(RecordInput<T>* underlying_input) : underlying_input_(underlying_input), has_recorded_(false) {
   }
   virtual ~ShuffledCacheInput() override {
     delete underlying_input_;
   }
 
-  virtual InputRecordReader* CreateReader() override {
+  virtual InputRecordReader<T>* CreateReader() override {
     if (!has_recorded_) {
       has_recorded_ = true;
-      return new CachingInputRecordReader(underlying_input_->CreateReader(), &recorded_cache_);
+      return new CachingInputRecordReader<T>(underlying_input_->CreateReader(), &recorded_cache_);
     }
 
     std::random_shuffle(recorded_cache_.begin(), recorded_cache_.end());
-    return new RecordedRecordReader(&recorded_cache_);
+    return new RecordedRecordReader<T>(&recorded_cache_);
   }
 
 private:
-  RecordInput* underlying_input_;
+  RecordInput<T>* underlying_input_;
   bool has_recorded_;
-  std::vector<std::string> recorded_cache_;
+  std::vector<T> recorded_cache_;
 };
 
 
 // Cross validation.
 
-class CrossValidationReader : public InputRecordReader {
+template <class T>
+class CrossValidationReader : public InputRecordReader<T> {
 public:
   explicit CrossValidationReader(
-      InputRecordReader* underlying_reader,
+      InputRecordReader<T>* underlying_reader,
       int fold_id,
       int num_folds,
       bool training)
@@ -255,17 +310,18 @@ public:
     delete underlying_reader_;
   }
 
-  virtual void Read(std::string* s) override {
+  virtual bool Read(T* s) override {
     std::lock_guard<std::mutex> lock(mutex_);
     for (;;) {
       ++row_id_;
       if ((training_ && (row_id_ % num_folds_) != fold_id_) ||
           (!training_ && (row_id_ % num_folds_) == fold_id_)) {
-        underlying_reader_->Read(s);
+        return underlying_reader_->Read(s);
         break;
       } else {
-        std::string tmp;
+        T tmp;
         underlying_reader_->Read(&tmp);
+        return false;
       }
     }
   }
@@ -276,7 +332,7 @@ public:
   }
 
 private:
-  InputRecordReader* underlying_reader_;
+  InputRecordReader<T>* underlying_reader_;
   std::mutex mutex_;
   int fold_id_;
   int num_folds_;
@@ -284,10 +340,11 @@ private:
   int row_id_;
 };
 
-class CrossValidationInput : public RecordInput {
+template <class T>
+class CrossValidationInput : public RecordInput<T> {
 public:
   CrossValidationInput(
-      RecordInput* underlying_input,
+      RecordInput<T>* underlying_input,
       int fold_id,
       int num_folds,
       bool training) : underlying_input_(underlying_input), fold_id_(fold_id), num_folds_(num_folds), training_(training) {
@@ -296,13 +353,13 @@ public:
     delete underlying_input_;
   }
 
-  virtual InputRecordReader* CreateReader() override {
-    return new CrossValidationReader(
+  virtual InputRecordReader<T>* CreateReader() override {
+    return new CrossValidationReader<T>(
         underlying_input_->CreateReader(), fold_id_, num_folds_, training_);
   }
 
 private:
-  RecordInput* underlying_input_;
+  RecordInput<T>* underlying_input_;
   int fold_id_;
   int num_folds_;
   bool training_;

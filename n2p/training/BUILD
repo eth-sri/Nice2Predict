@@ -2,6 +2,21 @@ cc_binary(
     name = "train",
     srcs = [
         "train.cpp",
+        "train_internal.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//base",
+        "//n2p/inference",
+        "//n2p/protos:interface_cc_proto",
+    ],
+)
+
+cc_binary(
+    name = "train_json",
+    srcs = [
+        "train_json.cpp",
+        "train_internal.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
