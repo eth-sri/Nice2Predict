@@ -38,6 +38,7 @@ DEFINE_int32(max_labels_z, 16, "Number of labels considered for the normalizatio
 
 DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is performed with the specified number of folds");
 DEFINE_bool(print_confusion, false, "Print confusion statistics instead of training.");
+DEFINE_bool(checkpoints, false, "Save checkpoint each training pass.");
 
 DEFINE_string(training_method, SSVM_TRAIN_NAME, "Training method to be used.");
 
@@ -152,6 +153,9 @@ void TrainPL(RecordInput<InputType>* input, GraphInference* inference, int num_t
     LOG(INFO) << "Pass " << pass << " with learning rate " << learning_rate;
     if (learning_rate < FLAGS_stop_learning_rate) break;  // Stop learning in this case.
     inference->PrepareForInference();
+    if (FLAGS_checkpoints) {
+      inference->SaveModel(FLAGS_out_model + std::to_string(pass));
+    }
   }
 }
 
@@ -201,6 +205,9 @@ void TrainSSVM(RecordInput<InputType>* input, GraphInference* inference, int num
       last_error_rate = error_rate;
     }
     inference->PrepareForInference();
+    if (FLAGS_checkpoints) {
+      inference->SaveModel(FLAGS_out_model + std::to_string(pass));
+    }
   }
 }
 
