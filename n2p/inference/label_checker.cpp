@@ -24,6 +24,7 @@ LabelChecker::~LabelChecker() {
 
 void LabelChecker::Load(const std::string& filename, const StringSet* ss) {
   LoadRules(filename);
+  LOG(INFO) << "Loaded rules";
   ApplyRulesOnAllValuesInSS(ss);
   is_loaded_ = true;
 }
@@ -66,6 +67,10 @@ void LabelChecker::ApplyRulesOnAllValuesInSS(const StringSet* ss) {
       for (int label : strings) {
         const char* strbegin = ss->getString(label);
         const char* strend = strbegin + strlen(strbegin);
+        if (strend - strbegin > 100) {
+          valid_labels_[label] = false;
+          continue;
+        }
         if (std::regex_match(strbegin, strend, rule.re_)) {
           valid_labels_[label] = rule.valid_;
         }
