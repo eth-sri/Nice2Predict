@@ -116,46 +116,6 @@ class FileInputRecordReader<std::string> : public InputRecordReader<std::string>
   }
 };
 
-class FileListRecordReader : public InputRecordReader<std::string> {
-public:
-  explicit FileListRecordReader(const std::vector<std::string>& filelist) : filelist_(filelist), file_index_(0) {
-  }
-  virtual ~FileListRecordReader() override {
-  }
-
-  virtual bool Read(std::string* s) override {
-    s->clear();
-
-    std::string filename;
-    {
-      std::lock_guard<std::mutex> lock(file_index_mutex_);
-      if (file_index_ >= filelist_.size()) {
-        return false;
-      }
-      filename = filelist_[file_index_];
-      file_index_++;
-    }
-
-    CHECK(exists(filename)) << "File '" << filename << "' does not exist!";
-    ReadFileToStringOrDie(filename.c_str(), s);
-    return true;
-  }
-
-  virtual bool ReachedEnd() override {
-    std::lock_guard<std::mutex> lock(file_index_mutex_);
-    return file_index_ >= filelist_.size();
-  }
-
-private:
-  inline bool exists (const std::string& name) {
-    return ( access( name.c_str(), F_OK ) != -1 );
-  }
-
-  const std::vector<std::string>& filelist_;
-  size_t file_index_;
-  std::mutex file_index_mutex_;
-};
-
 template <class T>
 class CachingInputRecordReader : public InputRecordReader<T> {
 public:
@@ -239,22 +199,6 @@ public:
 
 private:
   std::string filename_;
-};
-
-// Input where each records is the contents of a file.
-class FileListRecordInput : public RecordInput<std::string> {
-public:
-  explicit FileListRecordInput(std::vector<std::string>&& files) : files_(files) {
-  }
-  virtual ~FileListRecordInput() override {
-  }
-
-  virtual InputRecordReader<std::string>* CreateReader() override {
-    return new FileListRecordReader(files_);
-  }
-
-private:
-  std::vector<std::string> files_;
 };
 
 /**

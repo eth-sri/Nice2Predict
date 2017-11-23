@@ -17,7 +17,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "train_internal.h"
+#include "eval_internal.h"
 
 using nice2protos::Query;
 
