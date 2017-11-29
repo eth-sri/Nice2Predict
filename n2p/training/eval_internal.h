@@ -35,6 +35,7 @@
 using nice2protos::Query;
 
 DEFINE_string(model, "model", "File prefix for model to evaluate.");
+DEFINE_int64(input_records, -1, "Number of input records to use.");
 
 DEFINE_string(input, "testdata", "Input file with objects to be used for evaluation.");
 DEFINE_bool(debug_stats, false, "If specifies, only outputs debug stats of a trained model.");
@@ -117,7 +118,7 @@ void Evaluate(RecordInput<InputType>* evaluation_data, GraphInference* inference
 }
 
 template <class InputType>
-int LearningMain(Adapter<InputType> adapter) {
+int EvalMain(Adapter<InputType> adapter) {
   if (FLAGS_debug_stats) {
     GraphInference inference;
     inference.LoadModel(FLAGS_model);
@@ -128,7 +129,7 @@ int LearningMain(Adapter<InputType> adapter) {
     GraphInference inference;
     std::unique_ptr<RecordInput<InputType>> input;
 
-    input.reset(new FileRecordInput<InputType>(FLAGS_input));
+    input.reset(new FileRecordInput<InputType>(FLAGS_input, FLAGS_input_records));
     inference.LoadModel(FLAGS_model);
     PrecisionStats total_stats;
     Evaluate(input.get(), &inference, &total_stats, error_stats.get(), adapter);

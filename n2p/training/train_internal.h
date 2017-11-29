@@ -45,6 +45,7 @@ const std::string PROP_INITIAL_LEARN_RATE_AND_PASS_LEARN_RATE_UPDATE_PL = "prop_
 DEFINE_string(input, "testdata", "Input file with training data objects");
 DEFINE_string(out_model, "model", "File prefix for output models");
 DEFINE_int32(num_training_passes, 24, "Number of passes in training.");
+DEFINE_int64(input_records, -1, "Number of input records to use.");
 
 DEFINE_double(start_learning_rate, 0.1, "Initial learning rate");
 DEFINE_double(stop_learning_rate, 0.0001, "Stop learning if learning rate falls below the value");
@@ -249,11 +250,11 @@ int LearningMain(Adapter<InputType> adapter) {
     for (int fold_id = 0; fold_id < FLAGS_cross_validation_folds; ++fold_id) {
       GraphInference inference;
       std::unique_ptr<RecordInput<InputType>> training_data(
-          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(FLAGS_input),
-                                                                                fold_id, FLAGS_cross_validation_folds, true)));
+          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(
+                  FLAGS_input, FLAGS_input_records), fold_id, FLAGS_cross_validation_folds, true)));
       std::unique_ptr<RecordInput<InputType>> validation_data(
-          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(FLAGS_input),
-                                                                                fold_id, FLAGS_cross_validation_folds, false)));
+          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(
+              FLAGS_input, FLAGS_input_records), fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
       InitTrain(training_data.get(), &inference, adapter);
       if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {
@@ -286,7 +287,8 @@ int LearningMain(Adapter<InputType> adapter) {
     LOG(INFO) << "Running structured training...";
     // Structured training.
     GraphInference inference;
-    std::unique_ptr<RecordInput<InputType>> input(new ShuffledCacheInput<InputType>(new FileRecordInput<InputType>(FLAGS_input)));
+    std::unique_ptr<RecordInput<InputType>> input(new ShuffledCacheInput<InputType>(
+        new FileRecordInput<InputType>(FLAGS_input, FLAGS_input_records)));
     InitTrain(input.get(), &inference, adapter);
     LOG(INFO) << "Training inited...";
     if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {

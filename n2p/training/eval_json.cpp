@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
-  return LearningMain<Query>([](const Query &record) {
+  return EvalMain<Query>([](const Query &record) {
     return record;
   });
 }
