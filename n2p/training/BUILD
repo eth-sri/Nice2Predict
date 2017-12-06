@@ -22,10 +22,10 @@ cc_binary(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//json",
         "//base",
         "//n2p/inference",
         "//n2p/json_server:json_adapter",
+        "@com_github_open_source_parsers_jsoncpp//:jsoncpp",
     ],
 )
 
@@ -53,9 +53,9 @@ cc_binary(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//json",
         "//base",
         "//n2p/inference",
         "//n2p/json_server:json_adapter",
+        "@com_github_open_source_parsers_jsoncpp//:jsoncpp",
     ],
 )

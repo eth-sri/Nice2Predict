@@ -1,0 +1,182 @@
+# Created by nibau on 10.11.17
+
+cc_library(
+    name = "jsonrpc",
+    srcs = [
+        "jsonrpc/client_batchcall.cpp",
+        "jsonrpc/client_batchcall.h",
+        "jsonrpc/client_batchresponse.cpp",
+        "jsonrpc/client_batchresponse.h",
+        "jsonrpc/client_client.cpp",
+        "jsonrpc/client_client.h",
+        "jsonrpc/client_connectors_httpclient.cpp",
+        "jsonrpc/client_connectors_httpclient.h",
+        "jsonrpc/client_connectors_unixdomainsocketclient.cpp",
+        "jsonrpc/client_connectors_unixdomainsocketclient.h",
+        "jsonrpc/client_iclientconnector.h",
+        "jsonrpc/client_rpcprotocolclient.cpp",
+        "jsonrpc/client_rpcprotocolclient.h",
+        "jsonrpc/common_errors.cpp",
+        "jsonrpc/common_errors.h",
+        "jsonrpc/common_exception.cpp",
+        "jsonrpc/common_exception.h",
+        "jsonrpc/common_procedure.cpp",
+        "jsonrpc/common_procedure.h",
+        "jsonrpc/common_specification.h",
+        "jsonrpc/common_specificationparser.cpp",
+        "jsonrpc/common_specificationparser.h",
+        "jsonrpc/common_specificationwriter.cpp",
+        "jsonrpc/common_specificationwriter.h",
+        "jsonrpc/common_sharedconstants.h",
+        "jsonrpc/common_streamreader.h",
+        "jsonrpc/common_streamreader.cpp",
+        "jsonrpc/common_streamwriter.h",
+        "jsonrpc/common_streamwriter.cpp",
+        "jsonrpc/server_abstractprotocolhandler.cpp",
+        "jsonrpc/server_abstractprotocolhandler.h",
+        "jsonrpc/server_abstractserver.h",
+        "jsonrpc/server_abstractthreadedserver.h",
+        "jsonrpc/server_abstractserverconnector.cpp",
+        "jsonrpc/server_abstractserverconnector.h",
+        "jsonrpc/server_connectors_httpserver.cpp",
+        "jsonrpc/server_connectors_unixdomainsocketserver.cpp",
+        "jsonrpc/server_connectors_unixdomainsocketserver.h",
+        "jsonrpc/server_iclientconnectionhandler.h",
+        "jsonrpc/server_iprocedureinvokationhandler.h",
+        "jsonrpc/server_requesthandlerfactory.cpp",
+        "jsonrpc/server_requesthandlerfactory.h",
+        "jsonrpc/server_rpcprotocolserver12.cpp",
+        "jsonrpc/server_rpcprotocolserver12.h",
+        "jsonrpc/server_rpcprotocolserverv1.cpp",
+        "jsonrpc/server_rpcprotocolserverv1.h",
+        "jsonrpc/server_rpcprotocolserverv2.cpp",
+        "jsonrpc/server_rpcprotocolserverv2.h",
+        "jsonrpc/server_threadpool.h",
+    ],
+    hdrs = [
+        "jsonrpc/client.h",
+        "jsonrpc/server.h",
+        "jsonrpc/server_connectors_httpserver.h",
+    ],
+    linkopts = [
+        "-lcurl",
+        "-lmicrohttpd",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_open_source_parsers_jsoncpp//:jsoncpp"],
+)
+
+genrule(
+    name = "preprocess_files",
+    srcs = glob(["src/jsonrpccpp/**"]),
+    outs = [
+        "jsonrpc/client.h",
+        "jsonrpc/client_batchcall.cpp",
+        "jsonrpc/client_batchcall.h",
+        "jsonrpc/client_batchresponse.cpp",
+        "jsonrpc/client_batchresponse.h",
+        "jsonrpc/client_client.cpp",
+        "jsonrpc/client_client.h",
+        "jsonrpc/client_connectors_httpclient.cpp",
+        "jsonrpc/client_connectors_httpclient.h",
+        "jsonrpc/client_connectors_unixdomainsocketclient.cpp",
+        "jsonrpc/client_connectors_unixdomainsocketclient.h",
+        "jsonrpc/client_iclientconnector.h",
+        "jsonrpc/client_rpcprotocolclient.cpp",
+        "jsonrpc/client_rpcprotocolclient.h",
+        "jsonrpc/common_errors.cpp",
+        "jsonrpc/common_errors.h",
+        "jsonrpc/common_exception.cpp",
+        "jsonrpc/common_exception.h",
+        "jsonrpc/common_procedure.cpp",
+        "jsonrpc/common_procedure.h",
+        "jsonrpc/common_specification.h",
+        "jsonrpc/common_specificationparser.cpp",
+        "jsonrpc/common_specificationparser.h",
+        "jsonrpc/common_specificationwriter.cpp",
+        "jsonrpc/common_specificationwriter.h",
+        "jsonrpc/common_sharedconstants.h",
+        "jsonrpc/common_streamreader.h",
+        "jsonrpc/common_streamreader.cpp",
+        "jsonrpc/common_streamwriter.h",
+        "jsonrpc/common_streamwriter.cpp",
+        "jsonrpc/server.h",
+        "jsonrpc/server_abstractprotocolhandler.cpp",
+        "jsonrpc/server_abstractprotocolhandler.h",
+        "jsonrpc/server_abstractserver.h",
+        "jsonrpc/server_abstractthreadedserver.h",
+        "jsonrpc/server_abstractserverconnector.cpp",
+        "jsonrpc/server_abstractserverconnector.h",
+        "jsonrpc/server_connectors_httpserver.cpp",
+        "jsonrpc/server_connectors_httpserver.h",
+        "jsonrpc/server_connectors_unixdomainsocketserver.cpp",
+        "jsonrpc/server_connectors_unixdomainsocketserver.h",
+        "jsonrpc/server_iclientconnectionhandler.h",
+        "jsonrpc/server_iprocedureinvokationhandler.h",
+        "jsonrpc/server_requesthandlerfactory.cpp",
+        "jsonrpc/server_requesthandlerfactory.h",
+        "jsonrpc/server_rpcprotocolserver12.cpp",
+        "jsonrpc/server_rpcprotocolserver12.h",
+        "jsonrpc/server_rpcprotocolserverv1.cpp",
+        "jsonrpc/server_rpcprotocolserverv1.h",
+        "jsonrpc/server_rpcprotocolserverv2.cpp",
+        "jsonrpc/server_rpcprotocolserverv2.h",
+        "jsonrpc/server_threadpool.h",
+    ],
+    cmd = "$(location @com_ethz_srl_nice2predict//third_party:pull_json_rpc) external/com_github_cinemast_libjson_rpc_cpp " +
+        "&& cp -v client.h $(location jsonrpc/client.h) " +
+        "&& cp -v client_batchcall.cpp $(location jsonrpc/client_batchcall.cpp) " +
+        "&& cp -v client_batchcall.h $(location jsonrpc/client_batchcall.h) " +
+        "&& cp -v client_batchresponse.cpp $(location jsonrpc/client_batchresponse.cpp) " +
+        "&& cp -v client_batchresponse.h $(location jsonrpc/client_batchresponse.h) " +
+        "&& cp -v client_client.cpp $(location jsonrpc/client_client.cpp) " +
+        "&& cp -v client_client.h $(location jsonrpc/client_client.h) " +
+        "&& cp -v client_connectors_httpclient.cpp $(location jsonrpc/client_connectors_httpclient.cpp) " +
+        "&& cp -v client_connectors_httpclient.h $(location jsonrpc/client_connectors_httpclient.h) " +
+        "&& cp -v client_connectors_unixdomainsocketclient.cpp $(location jsonrpc/client_connectors_unixdomainsocketclient.cpp) " +
+        "&& cp -v client_connectors_unixdomainsocketclient.h $(location jsonrpc/client_connectors_unixdomainsocketclient.h) " +
+        "&& cp -v client_iclientconnector.h $(location jsonrpc/client_iclientconnector.h) " +
+        "&& cp -v client_rpcprotocolclient.cpp $(location jsonrpc/client_rpcprotocolclient.cpp) " +
+        "&& cp -v client_rpcprotocolclient.h $(location jsonrpc/client_rpcprotocolclient.h) " +
+        "&& cp -v common_errors.cpp $(location jsonrpc/common_errors.cpp) " +
+        "&& cp -v common_errors.h $(location jsonrpc/common_errors.h) " +
+        "&& cp -v common_exception.cpp $(location jsonrpc/common_exception.cpp) " +
+        "&& cp -v common_exception.h $(location jsonrpc/common_exception.h) " +
+        "&& cp -v common_procedure.cpp $(location jsonrpc/common_procedure.cpp) " +
+        "&& cp -v common_procedure.h $(location jsonrpc/common_procedure.h) " +
+        "&& cp -v common_specification.h $(location jsonrpc/common_specification.h) " +
+        "&& cp -v common_specificationparser.cpp $(location jsonrpc/common_specificationparser.cpp) " +
+        "&& cp -v common_specificationparser.h $(location jsonrpc/common_specificationparser.h) " +
+        "&& cp -v common_specificationwriter.cpp $(location jsonrpc/common_specificationwriter.cpp) " +
+        "&& cp -v common_specificationwriter.h $(location jsonrpc/common_specificationwriter.h) " +
+        "&& cp -v common_sharedconstants.h $(location jsonrpc/common_sharedconstants.h) " +
+        "&& cp -v common_streamreader.h $(location jsonrpc/common_streamreader.h) " +
+        "&& cp -v common_streamreader.cpp $(location jsonrpc/common_streamreader.cpp) " +
+        "&& cp -v common_streamwriter.h $(location jsonrpc/common_streamwriter.h) " +
+        "&& cp -v common_streamwriter.cpp $(location jsonrpc/common_streamwriter.cpp) " +
+        "&& cp -v server.h $(location jsonrpc/server.h) " +
+        "&& cp -v server_abstractprotocolhandler.cpp $(location jsonrpc/server_abstractprotocolhandler.cpp) " +
+        "&& cp -v server_abstractprotocolhandler.h $(location jsonrpc/server_abstractprotocolhandler.h) " +
+        "&& cp -v server_abstractserver.h $(location jsonrpc/server_abstractserver.h) " +
+        "&& cp -v server_abstractthreadedserver.h $(location jsonrpc/server_abstractthreadedserver.h) " +
+        "&& cp -v server_abstractserverconnector.cpp $(location jsonrpc/server_abstractserverconnector.cpp) " +
+        "&& cp -v server_abstractserverconnector.h $(location jsonrpc/server_abstractserverconnector.h) " +
+        "&& cp -v server_connectors_httpserver.cpp $(location jsonrpc/server_connectors_httpserver.cpp) " +
+        "&& cp -v server_connectors_httpserver.h $(location jsonrpc/server_connectors_httpserver.h) " +
+        "&& cp -v server_connectors_unixdomainsocketserver.cpp $(location jsonrpc/server_connectors_unixdomainsocketserver.cpp) " +
+        "&& cp -v server_connectors_unixdomainsocketserver.h $(location jsonrpc/server_connectors_unixdomainsocketserver.h) " +
+        "&& cp -v server_iclientconnectionhandler.h $(location jsonrpc/server_iclientconnectionhandler.h) " +
+        "&& cp -v server_iprocedureinvokationhandler.h $(location jsonrpc/server_iprocedureinvokationhandler.h) " +
+        "&& cp -v server_requesthandlerfactory.cpp $(location jsonrpc/server_requesthandlerfactory.cpp) " +
+        "&& cp -v server_requesthandlerfactory.h $(location jsonrpc/server_requesthandlerfactory.h) " +
+        "&& cp -v server_rpcprotocolserver12.cpp $(location jsonrpc/server_rpcprotocolserver12.cpp) " +
+        "&& cp -v server_rpcprotocolserver12.h $(location jsonrpc/server_rpcprotocolserver12.h) " +
+        "&& cp -v server_rpcprotocolserverv1.cpp $(location jsonrpc/server_rpcprotocolserverv1.cpp) " +
+        "&& cp -v server_rpcprotocolserverv1.h $(location jsonrpc/server_rpcprotocolserverv1.h) " +
+        "&& cp -v server_rpcprotocolserverv2.cpp $(location jsonrpc/server_rpcprotocolserverv2.cpp) " +
+        "&& cp -v server_rpcprotocolserverv2.h $(location jsonrpc/server_rpcprotocolserverv2.h) " +
+        "&& cp -v server_threadpool.h $(location jsonrpc/server_threadpool.h) ",
+    tools = [
+        "@com_ethz_srl_nice2predict//third_party:pull_json_rpc",
+    ],
+)

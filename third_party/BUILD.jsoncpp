@@ -1,0 +1,35 @@
+# Created by nibau on 9.11.17
+
+cc_library(
+    name = "jsoncpp",
+    srcs = ["jsoncpp.cpp"],
+    hdrs = [
+        "json/json.h",
+        "json/json-forwards.h",
+    ],
+    includes = ["./json"],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "amalgamate_script",
+    srcs = ["amalgamate.py"],
+    main = "amalgamate.py",
+)
+
+genrule(
+    name = "amalgamate",
+    srcs = ["LICENSE"] + glob(["src/**", "include/**"]),
+    tools = [
+        ":amalgamate_script"
+    ],
+    outs = [
+        "jsoncpp.cpp",
+        "json/json.h",
+        "json/json-forwards.h",
+    ],
+    cmd = "$(location :amalgamate_script) -t external/com_github_open_source_parsers_jsoncpp " +
+          "&& cp -v dist/jsoncpp.cpp $(location jsoncpp.cpp) " +
+          "&& cp -v dist/json/json.h $(location json/json.h) " +
+          "&& cp -v dist/json/json-forwards.h $(location json/json-forwards.h) "
+)

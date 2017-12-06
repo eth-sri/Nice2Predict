@@ -8,8 +8,8 @@ cc_binary(
     visibility = ["//visibility:public"],
     deps = [
         "json_adapter",
-        "//json:jsonrpc",
         "//n2p/server:nice2server_lib",
+        "@com_github_cinemast_libjson_rpc_cpp//:jsonrpc",
     ],
 )
 
@@ -21,9 +21,9 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//json",
         "//base",
         "//n2p/inference",
         "//n2p/protos:interface_cc_proto",
+        "@com_github_open_source_parsers_jsoncpp//:jsoncpp",
     ],
 )
