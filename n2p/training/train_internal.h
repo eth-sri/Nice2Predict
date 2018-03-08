@@ -42,7 +42,7 @@ const std::string PROP_SQRT_PASS_LEARN_RATE_UPDATE_PL = "prop_sqrt_pass";
 const std::string PROP_PASS_LEARN_RATE_UPDATE_PL = "prop_pass";
 const std::string PROP_INITIAL_LEARN_RATE_AND_PASS_LEARN_RATE_UPDATE_PL = "prop_pass_and_initial_learn_rate";
 
-DEFINE_string(input, "testdata", "Input file with training data objects");
+DEFINE_string(input, "input", "Input file with training data objects");
 DEFINE_string(out_model, "model", "File prefix for output models");
 DEFINE_int32(num_training_passes, 24, "Number of passes in training.");
 DEFINE_int64(input_records, -1, "Number of input records to use.");
