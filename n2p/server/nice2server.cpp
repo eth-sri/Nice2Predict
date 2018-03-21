@@ -59,6 +59,8 @@ void RunServer() {
   Nice2ServiceImpl service{};
 
   ServerBuilder builder;
+  builder.SetMaxSendMessageSize(64*1024*1024);
+  builder.SetMaxReceiveMessageSize(64*1024*1024);
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   // Register "service" as the instance through which we'll communicate with
