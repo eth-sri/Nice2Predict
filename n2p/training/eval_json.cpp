@@ -14,10 +14,16 @@
    limitations under the License.
  */
 
+#include <string>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "train_internal.h"
+#include "json/json.h"
+
+#include "n2p/json_server/json_adapter.h"
+
+#include "eval_internal.h"
 
 using nice2protos::Query;
 
@@ -26,7 +32,14 @@ int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
-  return LearningMain<Query>([](const Query &record) {
-    return record;
+  return EvalMain<std::string>([](const std::string &line) {
+    JsonAdapter adapter;
+    Json::Reader json_reader;
+    Json::Value v;
+    if (!json_reader.parse(line, v, false)) {
+      LOG(ERROR) << "Could not parse input: " << json_reader.getFormattedErrorMessages();
+    }
+
+    return adapter.JsonToQuery(v);
   });
 }

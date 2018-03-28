@@ -20,9 +20,9 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//json",
         "//base",
         "//n2p/inference",
         "//n2p/protos:interface_cc_proto",
+        "@com_github_open_source_parsers_jsoncpp//:jsoncpp",
     ],
 )

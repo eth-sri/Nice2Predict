@@ -29,6 +29,8 @@ using nice2protos::Nice2Service;
 DEFINE_string(model, "model", "Input model files");
 DEFINE_string(logfile_prefix, "", "File where to log all requests and responses");
 
+const uint32_t MAX_PROTOBUF_SIZE = 256 * 1024 * 1024;
+
 // Logic and data behind the server's behavior.
 class Nice2ServiceImpl final : public Nice2Service::Service {
  public:
@@ -59,6 +61,8 @@ void RunServer() {
   Nice2ServiceImpl service{};
 
   ServerBuilder builder;
+  builder.SetMaxSendMessageSize(MAX_PROTOBUF_SIZE);
+  builder.SetMaxReceiveMessageSize(MAX_PROTOBUF_SIZE);
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   // Register "service" as the instance through which we'll communicate with

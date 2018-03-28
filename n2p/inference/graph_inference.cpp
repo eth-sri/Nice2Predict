@@ -71,6 +71,8 @@ static const size_t kLoopyBPBeamSize = 32;
 
 static const size_t kFactorsLimitBeforeGoingDepperMultiLevelMap = 16;
 
+static const size_t MAX_NAME_LEN = 1024;
+
 // Returns -1 if the result will overflow.
 uint64 CalculateFactorial(int n) {
   uint64 result = 1;
@@ -259,7 +261,7 @@ public:
     assignments_.assign(variables_count, Assignment());
     for (const auto& assignment : assignments) {
       Assignment aset;
-      aset.label = label_set_->AddLabelName(assignment.label().c_str());
+      aset.label = label_set_->AddLabelName(assignment.label().substr(0, MAX_NAME_LEN).c_str());
       aset.must_infer = !assignment.given();
       if (assignment.node_index() < variables_count) {
         assignments_[assignment.node_index()] = aset;

@@ -43,7 +43,10 @@ public:
 template <class ProtoClass>
 class FileInputRecordReader : public InputRecordReader<ProtoClass> {
  public:
-  explicit FileInputRecordReader(const std::string& filename) : reader(filename), has_prefetched(false) {
+  explicit FileInputRecordReader(const std::string& filename, const int64 max_records=-1) :
+      reader(filename),
+      has_prefetched(false),
+      max_records_(max_records){
   }
   virtual ~FileInputRecordReader() override {
     reader.Close();
@@ -57,12 +60,16 @@ class FileInputRecordReader : public InputRecordReader<ProtoClass> {
     }
     *proto = std::move(prefetched_proto);
     has_prefetched = false;
-    return true;
+    if (max_records_ != 0) {
+      max_records_--;
+      return true;
+    }
+    return false;
   }
 
   virtual bool ReachedEnd() override {
     std::lock_guard<std::mutex> lock(reader_mutex);
-    return !has_prefetched && !PrefetchProto();
+    return (!has_prefetched && !PrefetchProto()) || max_records_ == 0;
   }
 
  private:
@@ -79,13 +86,16 @@ class FileInputRecordReader : public InputRecordReader<ProtoClass> {
   ProtoClass prefetched_proto;
   bool has_prefetched;
   std::mutex reader_mutex;
+  int64 max_records_;
 };
 
 
 template <>
 class FileInputRecordReader<std::string> : public InputRecordReader<std::string> {
  public:
-  explicit FileInputRecordReader(const std::string& filename) : file(filename) {
+  explicit FileInputRecordReader(const std::string& filename, const int64 max_records=-1) :
+      file(filename),
+      max_records_(max_records) {
     CHECK(exists(filename)) << "File '" << filename << "' does not exist!";
   }
   virtual ~FileInputRecordReader() override {
@@ -103,57 +113,23 @@ class FileInputRecordReader<std::string> : public InputRecordReader<std::string>
       }
       std::getline(file, *s);  // Read until we get a non-empty line.
     }
-    return true;
+    if (max_records_ != 0) {
+      max_records_--;
+      return true;
+    }
+    return false;
   }
 
   virtual bool ReachedEnd() override {
     std::lock_guard<std::mutex> lock(filemutex);
-    return file.eof();
+    return file.eof() || max_records_ == 0;
   }
  private:
   inline bool exists (const std::string& name) {
     return ( access( name.c_str(), F_OK ) != -1 );
   }
-};
 
-class FileListRecordReader : public InputRecordReader<std::string> {
-public:
-  explicit FileListRecordReader(const std::vector<std::string>& filelist) : filelist_(filelist), file_index_(0) {
-  }
-  virtual ~FileListRecordReader() override {
-  }
-
-  virtual bool Read(std::string* s) override {
-    s->clear();
-
-    std::string filename;
-    {
-      std::lock_guard<std::mutex> lock(file_index_mutex_);
-      if (file_index_ >= filelist_.size()) {
-        return false;
-      }
-      filename = filelist_[file_index_];
-      file_index_++;
-    }
-
-    CHECK(exists(filename)) << "File '" << filename << "' does not exist!";
-    ReadFileToStringOrDie(filename.c_str(), s);
-    return true;
-  }
-
-  virtual bool ReachedEnd() override {
-    std::lock_guard<std::mutex> lock(file_index_mutex_);
-    return file_index_ >= filelist_.size();
-  }
-
-private:
-  inline bool exists (const std::string& name) {
-    return ( access( name.c_str(), F_OK ) != -1 );
-  }
-
-  const std::vector<std::string>& filelist_;
-  size_t file_index_;
-  std::mutex file_index_mutex_;
+  int64 max_records_;
 };
 
 template <class T>
@@ -228,33 +204,20 @@ public:
 template <class T>
 class FileRecordInput : public RecordInput<T> {
 public:
-  explicit FileRecordInput(const std::string& filename) : filename_(filename) {
+  explicit FileRecordInput(const std::string& filename, const int64 max_records=-1) :
+      filename_(filename),
+      max_records_(max_records) {
   }
   virtual ~FileRecordInput() override {
   }
 
   virtual InputRecordReader<T>* CreateReader() override {
-    return new FileInputRecordReader<T>(filename_);
+    return new FileInputRecordReader<T>(filename_, max_records_);
   }
 
 private:
   std::string filename_;
-};
-
-// Input where each records is the contents of a file.
-class FileListRecordInput : public RecordInput<std::string> {
-public:
-  explicit FileListRecordInput(std::vector<std::string>&& files) : files_(files) {
-  }
-  virtual ~FileListRecordInput() override {
-  }
-
-  virtual InputRecordReader<std::string>* CreateReader() override {
-    return new FileListRecordReader(files_);
-  }
-
-private:
-  std::vector<std::string> files_;
+  int64 max_records_;
 };
 
 /**
@@ -317,7 +280,6 @@ public:
       if ((training_ && (row_id_ % num_folds_) != fold_id_) ||
           (!training_ && (row_id_ % num_folds_) == fold_id_)) {
         return underlying_reader_->Read(s);
-        break;
       } else {
         T tmp;
         underlying_reader_->Read(&tmp);

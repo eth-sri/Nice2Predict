@@ -19,8 +19,8 @@
 
 
 #include "json/json.h"
-#include "json/server.h"
-#include "json/server_connectors_httpserver.h"
+#include "jsonrpc/server.h"
+#include "jsonrpc/server_connectors_httpserver.h"
 
 #include "base/stringprintf.h"
 #include "n2p/server/nice2service_internal.h"

@@ -17,7 +17,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "json/server_connectors_httpserver.h"
+#include "jsonrpc/server_connectors_httpserver.h"
 
 #include "json_server.h"
 

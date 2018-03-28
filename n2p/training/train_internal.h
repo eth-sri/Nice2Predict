@@ -1,3 +1,22 @@
+/*
+   Copyright 2017 Software Reliability Lab, ETH Zurich
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ */
+
+#ifndef NICE2PREDICT_TRAIN_INTERNAL_H
+#define NICE2PREDICT_TRAIN_INTERNAL_H
+
 #include <string>
 #include <fstream>
 #include <functional>
@@ -7,11 +26,10 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "json/json.h"
-
 #include "base/base.h"
 #include "base/readerutil.h"
 #include "n2p/inference/graph_inference.h"
+#include "n2p/training/process_data.h"
 
 using nice2protos::Query;
 
@@ -24,11 +42,10 @@ const std::string PROP_SQRT_PASS_LEARN_RATE_UPDATE_PL = "prop_sqrt_pass";
 const std::string PROP_PASS_LEARN_RATE_UPDATE_PL = "prop_pass";
 const std::string PROP_INITIAL_LEARN_RATE_AND_PASS_LEARN_RATE_UPDATE_PL = "prop_pass_and_initial_learn_rate";
 
-DEFINE_string(input, "testdata", "Input file with JSON objects regarding training data");
+DEFINE_string(input, "input", "Input file with training data objects");
 DEFINE_string(out_model, "model", "File prefix for output models");
-DEFINE_bool(hogwild, true, "Whether to use Hogwild parallel training.");
-DEFINE_int32(num_threads, 8, "Number of threads to use.");
 DEFINE_int32(num_training_passes, 24, "Number of passes in training.");
+DEFINE_int64(input_records, -1, "Number of input records to use.");
 
 DEFINE_double(start_learning_rate, 0.1, "Initial learning rate");
 DEFINE_double(stop_learning_rate, 0.0001, "Stop learning if learning rate falls below the value");
@@ -38,6 +55,7 @@ DEFINE_int32(max_labels_z, 16, "Number of labels considered for the normalizatio
 
 DEFINE_int32(cross_validation_folds, 0, "If more than 1, cross-validation is performed with the specified number of folds");
 DEFINE_bool(print_confusion, false, "Print confusion statistics instead of training.");
+DEFINE_bool(checkpoints, false, "Save checkpoint each training pass.");
 
 DEFINE_string(training_method, SSVM_TRAIN_NAME, "Training method to be used.");
 
@@ -46,40 +64,6 @@ DEFINE_double(initial_learning_rate_ssvm, 0.1, "Initial learning rate of SSVM in
 DEFINE_string(learning_rate_update_formula_pl, PROP_PASS_LEARN_RATE_UPDATE_PL,"Learning update formula for PL learning. ");
 DEFINE_double(pl_lambda, 1.0, "Lambda used in the formula for computing the learning rate proportional to the training pass and the initial learning rate.");
 
-template <class InputType>
-using Adapter = std::function<Query(const InputType&)>;
-
-typedef std::function<void(const Query& query)> InputProcessor;
-
-template <class InputType>
-void ForeachInput(InputRecordReader<InputType>* reader, InputProcessor proc, Adapter<InputType>& adapter) {
-  while (!reader->ReachedEnd()) {
-    InputType record;
-    if (!reader->Read(&record)) {
-      continue;
-    }
-    Query query;
-    proc(adapter(record));
-  }
-}
-
-template <class InputType>
-void ParallelForeachInput(RecordInput<InputType>* input, InputProcessor proc, Adapter<InputType> &adapter) {
-  if (!FLAGS_hogwild) {
-    ForeachInput(input->CreateReader(), proc, adapter);
-    return;
-  }
-
-  // Do parallel ForEach
-  std::unique_ptr<InputRecordReader<InputType>> reader(input->CreateReader());
-  std::vector<std::thread> threads;
-  for (int i = 0; i < FLAGS_num_threads; ++i) {
-    threads.push_back(std::thread(std::bind(&ForeachInput<InputType>, reader.get(), proc, adapter)));
-  }
-  for (auto& thread : threads){
-    thread.join();
-  }
-}
 
 template <class InputType>
 void InitTrain(RecordInput<InputType>* input, GraphInference* inference, Adapter<InputType> &adapter) {
@@ -152,6 +136,9 @@ void TrainPL(RecordInput<InputType>* input, GraphInference* inference, int num_t
     LOG(INFO) << "Pass " << pass << " with learning rate " << learning_rate;
     if (learning_rate < FLAGS_stop_learning_rate) break;  // Stop learning in this case.
     inference->PrepareForInference();
+    if (FLAGS_checkpoints) {
+      inference->SaveModel(FLAGS_out_model + std::to_string(pass));
+    }
   }
 }
 
@@ -201,6 +188,9 @@ void TrainSSVM(RecordInput<InputType>* input, GraphInference* inference, int num
       last_error_rate = error_rate;
     }
     inference->PrepareForInference();
+    if (FLAGS_checkpoints) {
+      inference->SaveModel(FLAGS_out_model + std::to_string(pass));
+    }
   }
 }
 
@@ -260,11 +250,11 @@ int LearningMain(Adapter<InputType> adapter) {
     for (int fold_id = 0; fold_id < FLAGS_cross_validation_folds; ++fold_id) {
       GraphInference inference;
       std::unique_ptr<RecordInput<InputType>> training_data(
-          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(FLAGS_input),
-                                                                                fold_id, FLAGS_cross_validation_folds, true)));
+          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(
+                  FLAGS_input, FLAGS_input_records), fold_id, FLAGS_cross_validation_folds, true)));
       std::unique_ptr<RecordInput<InputType>> validation_data(
-          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(FLAGS_input),
-                                                                                fold_id, FLAGS_cross_validation_folds, false)));
+          new ShuffledCacheInput<InputType>(new CrossValidationInput<InputType>(new FileRecordInput<InputType>(
+              FLAGS_input, FLAGS_input_records), fold_id, FLAGS_cross_validation_folds, false)));
       LOG(INFO) << "Training fold " << fold_id;
       InitTrain(training_data.get(), &inference, adapter);
       if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {
@@ -297,7 +287,8 @@ int LearningMain(Adapter<InputType> adapter) {
     LOG(INFO) << "Running structured training...";
     // Structured training.
     GraphInference inference;
-    std::unique_ptr<RecordInput<InputType>> input(new ShuffledCacheInput<InputType>(new FileRecordInput<InputType>(FLAGS_input)));
+    std::unique_ptr<RecordInput<InputType>> input(new ShuffledCacheInput<InputType>(
+        new FileRecordInput<InputType>(FLAGS_input, FLAGS_input_records)));
     InitTrain(input.get(), &inference, adapter);
     LOG(INFO) << "Training inited...";
     if (FLAGS_training_method.compare(PL_TRAIN_NAME) == 0) {
@@ -320,3 +311,5 @@ int LearningMain(Adapter<InputType> adapter) {
   }
   return 0;
 }
+
+#endif // NICE2PREDICT_TRAIN_INTERNAL_H

@@ -3,6 +3,7 @@
 
 import sys
 import os
+import io
 
 def PrintUsage():
     sys.stderr.write("""
@@ -26,8 +27,9 @@ def ExploreSourceDir(start_dir):
 def TransferFile(start_dir, f):
     fdir = os.path.dirname(f)
     out_filename = f.replace('/', '_')
-    reader = open(os.path.join(start_dir, f), 'rt')
-    writer = open(out_filename, 'wt')
+    print (os.path.join(start_dir, f))
+    reader = io.open(os.path.join(start_dir, f), mode='r', encoding="utf-8")
+    writer = io.open(out_filename, mode='w', encoding="utf-8")
     try:
         for line in reader:
             if line.startswith('#include ') and ('jsonparser.h' in line):
@@ -37,13 +39,17 @@ def TransferFile(start_dir, f):
                 include = include[:include.find('"')]
                 include = os.path.normpath(os.path.join(fdir, include))
                 include = include.replace('/', '_')
-                line = '#include "%s"\n' % ('json/' + include)
+                line = '#include "%s"\n' % ('jsonrpc/' + include)
             elif line.startswith('#include <jsonrpccpp/'):
                 include = line[21:]
                 include = include[:include.find('>')]
                 include = include.replace('/', '_')
-                line = '#include "%s"\n' % ('json/' + include)                
-            writer.write(line)
+                line = '#include "%s"\n' % ('jsonrpc/' + include)
+            
+            try:
+            	writer.write(line)
+            except TypeError as e:
+            	writer.write(unicode(line))
     finally:
         reader.close()
         writer.close()
@@ -55,21 +61,22 @@ if __name__ == "__main__":
 
     start_dir = os.path.join(sys.argv[1], 'src/jsonrpccpp')
 
-    srcs = []
+  #  srcs = []
     for f in ExploreSourceDir(start_dir):
-        srcs.append(TransferFile(start_dir, f))
+        TransferFile(start_dir, f)
+        #srcs.append(TransferFile(start_dir, f))
 
-    print '#=============================================='
-    print '#   Include the following into the BUILD file'
-    print '#=============================================='
-    print
-    print 'cc_library(name = "jsonrpc",'
-    print '           srcs = ['
-    for x in srcs:
-        print '               "%s",' % (x)
-    print '           ],'
-    print '           deps = [":jsoncpp"],'
-    print '           linkopts = ["-lcurl", "-lmicrohttpd"],'
-    print '           visibility = ["//visibility:public"])'
+#    print ('#==============================================')
+#    print ('#   Include the following into the BUILD file')
+#    print ('#==============================================')
+#    print
+#    print ('cc_library(name = "jsonrpc",')
+#    print ('           srcs = [')
+#    for x in srcs:
+#        print ('               "%s",' % (x))
+#    print ('           ],')
+#    print ('           deps = [":jsoncpp"],')
+#    print ('           linkopts = ["-lcurl", "-lmicrohttpd"],')
+#    print ('           visibility = ["//visibility:public"])')
 
 
