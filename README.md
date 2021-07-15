@@ -30,6 +30,9 @@ on Windows follow any installation instructions and install libmicrohttpd, curl 
 Finally, call
 > bazel build //...
 
+If using a sufficiently new compiler, boringssl dependency for gRPC may fail to build. Try:
+> bazel build --copt=-Wno-error=array-parameter --copt=-Wno-error=stringop-overflow //...
+
 To run tests, call
 > bazel test //...
 
