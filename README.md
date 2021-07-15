@@ -30,32 +30,36 @@ on Windows follow any installation instructions and install libmicrohttpd, curl 
 Finally, call
 > bazel build //...
 
+If using a sufficiently new compiler, boringssl dependency for gRPC may fail to build. Try:
+> bazel build --copt=-Wno-error=array-parameter --copt=-Wno-error=stringop-overflow //...
+
 To run tests, call
 > bazel test //...
 
 ## Training
 
 Run:
-> bazel run //src/training/train
+> bazel run //n2p/training:train
+Don't forget about `--copt` from above if boringssl fails to build.
 
 To get options for training, use:
-> bazel run //src/training/train --help
+> bazel run //n2p/training:train --help
 
 By default, train gets input programs (converted to JSON for example with UnuglifyJS) from the file testdata in the current directory. As a result, it creates files with the trained model.
 
 If you wish to train the model using pseudolikelihood use the following parameters:
 
-> bazel run //src/training/train -- -training_method pl -input path/to/input/file --logtostderr
+> bazel run //n2p/training:train -- -training_method pl -input path/to/input/file --logtostderr
 
 you can control the pseudolikelihood specific beam size with the `-beam_size` parameter which is different from the beam size used during MAP Inference.
 
-`//src/training/train` expects data to be in protobuf recordIO format. If you want to use JSON input - use `//src/training/train_json` instead.
+`//n2p/training:train` expects data to be in protobuf recordIO format. If you want to use JSON input - use `//n2p/training:train_json` instead.
 
 ### Factors
 
 by default the usage of factor features in Nice2Predict is enabled, however if you wish to disable it you can launch the training with the following command:
 
-> bazel run //src/training/train -- -use_factors=false -input path/to/input/file --logtostderr
+> bazel run //n2p/training:train -- -use_factors=false -input path/to/input/file --logtostderr
 
 ## Predicting properties
 
