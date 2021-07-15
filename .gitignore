@@ -7,3 +7,4 @@ bin
 *.a
 CMakeCache.txt
 cmake-build-debug
+bazel-*
